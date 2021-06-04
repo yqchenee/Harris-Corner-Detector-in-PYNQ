@@ -44,7 +44,7 @@ int main () {
 	  gold_output[corner_count].data.range(19,10) = tmp;
 	  ++corner_count;
   }
-  //for empty row in th last of the file
+  //for empty last line in the file
   corner_count = corner_count - 1;
 
 
