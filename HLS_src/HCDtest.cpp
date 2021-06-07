@@ -11,18 +11,27 @@ POS output[MAX_HEIGHT * MAX_WIDTH];
 POS gold_output[MAX_HEIGHT * MAX_WIDTH];
 
 int main () {
-  int           	x,y;
+  int x,y;
   int tmp;
-  int			width, height;
-  int corner_count = 0, out_corner;
+  AXI_PIXEL pixel;
+  reg32_t width, height;
+  reg32_t corner_count = 5, out_corner = 10;
 
+  stream_ti strmInput;
+  stream_to strmOutput;
 
   //read file
   fstream fin1;
   fstream fin2;
 
-  fin1.open("../../../1_in.txt", ios::in);
-  fin2.open("../../../1_gold.txt", ios::in);
+  // change path if needed !
+  fin1.open("../../../../HLS_src/1_in.txt", ios::in);
+  fin2.open("../../../../HLS_src/1_gold.txt", ios::in);
+
+  if (!fin1.is_open() || !fin2.is_open()) {
+    cout << "fail reading file" << endl;
+    return 1;
+  }
 
   fin1 >> width;
   fin1 >> height;
@@ -34,6 +43,7 @@ int main () {
 		  input[i][j].data.range(15, 8) = tmp;
 		  fin1 >> tmp;
 		  input[i][j].data.range(23, 16) = tmp;
+          strmInput.write(input[i][j]);
 	  }
   }
 
@@ -49,7 +59,7 @@ int main () {
 
 
   // Hardware Function
-  //HCD(input, output, width, height, out_corner);
+  HCD(&strmInput, &strmOutput, &out_corner, width, height);
 
   //check answer
   if(out_corner != corner_count) {
@@ -60,12 +70,13 @@ int main () {
   }
 
   for(int i = 0; i < corner_count; ++i) {
-	  if(gold_output[corner_count].data.range(9,0) != output[corner_count].data.range(9,0)
-		|| gold_output[corner_count].data.range(19,10) != output[corner_count].data.range(19,10)) {
+      auto tmp = strmOutput.read().data;
+	  if(gold_output[corner_count].data.range(9,0) != tmp.range(9,0)
+		|| gold_output[corner_count].data.range(19,10) != tmp.range(19,10)) {
 		  cout << "FAILED! wrong corner coordinate!" << endl;
 		  cout << "In corner " << i << endl;
 		  cout << "Golden: (" << gold_output[corner_count].data.range(9,0) << "," << gold_output[corner_count].data.range(19,10) << ")" << endl;
-		  cout << "Your output: (" << output[corner_count].data.range(9,0) << "," << output[corner_count].data.range(19,10) << ")" << endl;
+		  cout << "Your output: (" << tmp.range(9,0) << "," << tmp.range(19,10) << ")" << endl;
 		  return 1;
 	  }
 
