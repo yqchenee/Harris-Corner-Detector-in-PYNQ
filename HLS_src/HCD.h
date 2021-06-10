@@ -2,6 +2,7 @@
 #define _HCD_H_
 #include <ap_axi_sdata.h>
 #include <hls_stream.h>
+#include "ap_video.h"
 
 #define MAX_WIDTH 1920
 #define MAX_HEIGHT 1080
@@ -11,15 +12,21 @@
 #define INPUT_IMAGE_BASE "test_1080p"
 #define OUTPUT_IMAGE_BASE "result_1080p"*/
 
+typedef ap_rgb<8,8,8> RGB;
+typedef ap_uint<8> GRAY_PIXEL;
+
 //data[0:7]:G, data[8:15]:B, data[16:23]:R
 typedef ap_axiu<24,1,1,1> AXI_PIXEL;
 //data[0:9]:x, data[10:19]:y
 typedef ap_axiu<20,1,1,1> POS;
 typedef ap_uint<32> reg32_t;
-
+typedef signed int int32_t;
+typedef unsigned int uint32_t;
 typedef hls::stream<AXI_PIXEL> stream_ti;
 typedef hls::stream<POS> stream_to;
 
+typedef ap_window<GRAY_PIXEL,3,3> WINDOW;
+typedef ap_linebuffer<GRAY_PIXEL, 3, MAX_WIDTH> ROW_BUFFER_3;
 
 void HCD(
     stream_ti* pstrmInput, 
