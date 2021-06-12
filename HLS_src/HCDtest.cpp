@@ -69,7 +69,7 @@ int main () {
         return 1;
     }
 
-    for(int i = 0; i < out_corner; ++i) {
+    for(int i = 0; i < corner_count; ++i) {
         auto tmp = strmOutput.read().data;
         if(gold_output[corner_count].data.range(9,0) != tmp.range(9,0)
           || gold_output[corner_count].data.range(19,10) != tmp.range(19,10)) {

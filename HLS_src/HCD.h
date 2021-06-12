@@ -28,6 +28,8 @@ typedef hls::stream<POS> stream_to;
 typedef ap_window<GRAY_PIXEL,3,3> WINDOW;
 typedef ap_linebuffer<GRAY_PIXEL, 3, MAX_WIDTH> ROW_BUFFER_3;
 
+typedef ap_linebuffer<GRAY_PIXEL, 2*MAX_HEIGHT, 2*MAX_WIDTH> ALL_BUFFER;
+
 void HCD(
     stream_ti* pstrmInput, 
     stream_to* pstrmOutput,
