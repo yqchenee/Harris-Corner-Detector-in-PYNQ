@@ -36,7 +36,7 @@ GRAY_PIXEL compute_iy(WINDOW *window)
     return pixel;
 }
 
-/** 
+/**
  * Gaussian filter with sigma 1.5
  * **/
 GRAY_PIXEL Gaussian_filter_15(WINDOW* window)
@@ -46,11 +46,11 @@ GRAY_PIXEL Gaussian_filter_15(WINDOW* window)
     GRAY_PIXEL pixel =0;
 
     const float op[3][3] = {
-        {0.0947417, 0.118318, 0.0947417},    
+        {0.0947417, 0.118318, 0.0947417},
         {0.118318 , 0.147761, 0.118318},
         {0.0947417, 0.118318, 0.0947417}
     };
-  
+
     for (i = 0; i < 3; i++) {
         for (j = 0; j < 3; j++) {
             sum += window->getval(i,j) * op[i][j];
@@ -60,7 +60,7 @@ GRAY_PIXEL Gaussian_filter_15(WINDOW* window)
     return pixel;
 }
 
-/** 
+/**
  * Gaussian filter with sigma 1
  * **/
 GRAY_PIXEL Gaussian_filter_1(WINDOW* window)
@@ -68,10 +68,10 @@ GRAY_PIXEL Gaussian_filter_1(WINDOW* window)
     char i,j;
     double sum = 0;
     GRAY_PIXEL pixel =0;
-  
+
     const float op[3][3] = {
         {0.0751136, 0.123841, 0.0751136},
-        {0.123841, 0.20418, 0.123841},   
+        {0.123841, 0.20418, 0.123841},
         {0.0751136, 0.123841, 0.0751136}
     };
 
@@ -88,10 +88,10 @@ void process_input(AXI_PIXEL* input, ALL_BUFFER* gray_buf, int32_t i, int32_t j)
 {
 
     GRAY_PIXEL input_gray_pix;
-    input_gray_pix = (input->data.range(7,0) 
-            + input->data.range(15,8) 
+    input_gray_pix = (input->data.range(7,0)
+            + input->data.range(15,8)
             + input->data.range(23,16))/3;
-    
+
     gray_buf->insert_at(input_gray_pix, i, j);
 }
 
@@ -209,6 +209,27 @@ void compute_sum(ALL_BUFFER* Ixx_buf, ALL_BUFFER* Ixy_buf,
     }
 }
 
+void compute_det_trace(TWICE_BUFFER* matrix, ALL_BUFFER* det_buf,
+        ALL_BUFFER* trace_buf, int32_t row, int32_t col)
+{
+    int32_t i;
+    int32_t j;
+    GRAY_PIXEL Ixx, Ixy, Iyy, det;
+    for (i = 0; i < row; ++i) {
+        for (j = 0; j < col; ++j) {
+            Ixx = matrix-> getval(i, j);
+            Ixy = matrix-> getval(row, col + j);
+            Ixx = matrix-> getval(row + i, col + j);
+            // TODO: float precision
+            det = Ixx * Iyy;
+            trace_buf-> insert_at(det, i, j);
+            // TODO: float precision
+            det -= Ixy * Ixy;
+            det_buf->insert_at(det, i, j);
+        }
+    }
+}
+
 void HCD(stream_ti* pstrmInput, stream_to* pstrmOutput, reg32_t* corner, reg32_t row, reg32_t col)
 {
 #pragma HLS INTERFACE axis register both port=pstrmOutput
@@ -227,6 +248,8 @@ void HCD(stream_ti* pstrmInput, stream_to* pstrmOutput, reg32_t* corner, reg32_t
     ALL_BUFFER Ixx_buf;
     ALL_BUFFER Iyy_buf;
     ALL_BUFFER Ixy_buf;
+    ALL_BUFFER det_buf;
+    ALL_BUFFER trace_buf;
 
     TWICE_BUFFER matrix;
 
@@ -240,17 +263,19 @@ void HCD(stream_ti* pstrmInput, stream_to* pstrmOutput, reg32_t* corner, reg32_t
 
     // Step 1: Smooth the image by Gaussian kernel
     blur_img(&gray_buf, &blur_buf, row, col);
-    
+
     // Step 2: Calculate Ix, Iy (1st derivative of image along x and y axis)
     // Step 3: Compute Ixx, Ixy, Iyy (Ixx = Ix*Ix, ...)
-    compute_dif(&blur_buf, &Ixx_buf, &Iyy_buf, 
-            &Ixy_buf, row, col); 
+    compute_dif(&blur_buf, &Ixx_buf, &Iyy_buf,
+            &Ixy_buf, row, col);
 
     // Step 4: Compute Sxx, Sxy, Syy (weighted summation of Ixx, Ixy, Iyy in neighbor pixels)
     compute_sum(&Ixx_buf, &Ixy_buf, &Iyy_buf, &matrix, row, col);
 
-    // Todo: 
+    // Todo:
     // Step 5: Compute the det and trace of matrix M (M = [[Sxx, Sxy], [Sxy, Syy]])
+    compute_det_trace(&matrix, &det_buf, &trace_buf, row, col);
+
     // Step 6: Compute the response of the detector by det/(trace+1e-12)
     // Step 7: Post processing
     *corner = 84;
