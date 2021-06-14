@@ -243,6 +243,22 @@ void compute_response(ALL_BUFFER* det_buf, ALL_BUFFER* trace_buf,
     }
 }
 
+void output_maxima(ALL_BUFFER* response_buf, stream_to* pstrmOutput, int32_t row, int32_t col)
+{
+    int32_t i;
+    int32_t j;
+    POS corner_position;
+    for(i = 1 ; i < row-1 ; i++) {
+        for(j = 1 ; j < col-1 ; j++) {
+            if(response_buf-> getval() > 100) {
+                corner_position.data.range(9, 0) = i;
+                corner_position.data.range(19, 10) = j;
+                pstrmOutput-> write(corner_position);
+            }
+        }
+    }
+}
+
 void HCD(stream_ti* pstrmInput, stream_to* pstrmOutput, reg32_t* corner, reg32_t row, reg32_t col)
 {
 #pragma HLS INTERFACE axis register both port=pstrmOutput
@@ -294,11 +310,10 @@ void HCD(stream_ti* pstrmInput, stream_to* pstrmOutput, reg32_t* corner, reg32_t
     compute_response(&det_buf, &trace_buf, &response_buf, row, col);
 
     // Step 7: Post processing
-
+    output_maxima(&response_buf, pstrmOutput, row, col);
 
     *corner = 84;
-    for (i = 0; i< *corner; i++) {
-        pstrmOutput->write(test);
-    }
-    return;
+    // for (i = 0; i< *corner; i++) {
+    //     pstrmOutput->write(test);
+    // }
 }
