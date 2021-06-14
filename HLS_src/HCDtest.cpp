@@ -68,19 +68,19 @@ int main () {
         cout << "FAILED! wrong corner count" << endl;
         cout << "Golden: " << corner_count << endl;
         cout << "Your output: " << out_corner << endl;
-        return 1;
     }
 
-    for(int i = 0; i < corner_count; ++i) {
+    int i = 0;
+    while(!strmOutput.empty()) {
         auto tmp = strmOutput.read().data;
-        if(gold_output[corner_count].data.range(9,0) != tmp.range(9,0)
-          || gold_output[corner_count].data.range(19,10) != tmp.range(19,10)) {
+        if(gold_output[i].data.range(9,0) != tmp.range(9,0)
+          || gold_output[i].data.range(19,10) != tmp.range(19,10)) {
             cout << "FAILED! wrong corner coordinate!" << endl;
             cout << "In corner " << i << endl;
-            cout << "Golden: (" << gold_output[corner_count].data.range(9,0) << "," << gold_output[corner_count].data.range(19,10) << ")" << endl;
+            cout << "Golden: (" << gold_output[i].data.range(9,0) << "," << gold_output[i].data.range(19,10) << ")" << endl;
             cout << "Your output: (" << tmp.range(9,0) << "," << tmp.range(19,10) << ")" << endl;
-            return 1;
         }
+        if(++i == corner_count) break;
     }
 
     return 0;

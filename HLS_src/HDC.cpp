@@ -250,7 +250,7 @@ void output_maxima(ALL_BUFFER* response_buf, stream_to* pstrmOutput, int32_t row
     POS corner_position;
     for(i = 1 ; i < row-1 ; i++) {
         for(j = 1 ; j < col-1 ; j++) {
-            if(response_buf-> getval() > 100) {
+            if(response_buf-> getval(i, j) > 100) {
                 corner_position.data.range(9, 0) = i;
                 corner_position.data.range(19, 10) = j;
                 pstrmOutput-> write(corner_position);
