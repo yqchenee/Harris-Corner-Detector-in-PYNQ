@@ -230,6 +230,19 @@ void compute_det_trace(TWICE_BUFFER* matrix, ALL_BUFFER* det_buf,
     }
 }
 
+void compute_response(ALL_BUFFER* det_buf, ALL_BUFFER* trace_buf,
+        ALL_BUFFER* response_buf, int32_t row, int32_t col)
+{
+    int32_t i;
+    int32_t j;
+    for (i = 0; i < row; ++i) {
+        for (j = 0; j < col; ++j) {
+            double response = double(det_buf-> getval(i, j)) / double(trace_buf-> getval(i, j));
+            response_buf->insert_at(GRAY_PIXEL(response), i, j);
+        }
+    }
+}
+
 void HCD(stream_ti* pstrmInput, stream_to* pstrmOutput, reg32_t* corner, reg32_t row, reg32_t col)
 {
 #pragma HLS INTERFACE axis register both port=pstrmOutput
@@ -250,6 +263,7 @@ void HCD(stream_ti* pstrmInput, stream_to* pstrmOutput, reg32_t* corner, reg32_t
     ALL_BUFFER Ixy_buf;
     ALL_BUFFER det_buf;
     ALL_BUFFER trace_buf;
+    ALL_BUFFER response_buf;
 
     TWICE_BUFFER matrix;
 
@@ -277,7 +291,11 @@ void HCD(stream_ti* pstrmInput, stream_to* pstrmOutput, reg32_t* corner, reg32_t
     compute_det_trace(&matrix, &det_buf, &trace_buf, row, col);
 
     // Step 6: Compute the response of the detector by det/(trace+1e-12)
+    compute_response(&det_buf, &trace_buf, &response_buf, row, col);
+
     // Step 7: Post processing
+
+
     *corner = 84;
     for (i = 0; i< *corner; i++) {
         pstrmOutput->write(test);
