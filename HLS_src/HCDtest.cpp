@@ -35,6 +35,8 @@ int main () {
 
     fin1 >> width;
     fin1 >> height;
+    width = MAX_WIDTH;
+    height = MAX_HEIGHT;
     for(int i = 0; i < width; ++i) {
         for(int j = 0; j < height; ++j) {
             fin1 >> tmp;
