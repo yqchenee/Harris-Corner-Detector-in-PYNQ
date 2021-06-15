@@ -6,28 +6,6 @@
 #endif
 
 /**
- * Calculate 1st derivative of image along x
- * **/
-DIF_PIXEL compute_ix(WINDOW *window)
-{
-    DIF_PIXEL pixel = 0;
-    pixel = window->getval(0, 0) - window-> getval(0, 2);
-
-    return pixel;
-}
-
-/**
- * Calculate 1st derivative of image along y
- * **/
-DIF_PIXEL compute_iy(WINDOW *window)
-{
-    DIF_PIXEL pixel = 0;
-    pixel = window->getval(0, 0) - window-> getval(2, 0);
-
-    return pixel;
-}
-
-/**
  * Gaussian filter with sigma 1.5
  * **/
 GRAY_PIXEL Gaussian_filter_15(WINDOW* window)
@@ -91,17 +69,24 @@ void blur_img(GRAY_BUFFER* gray_buf, GRAY_BUFFER* blur_buf, int32_t row, int32_t
     int32_t i;
     int32_t j;
     GRAY_PIXEL blur;
+    GRAY_PIXEL zero = 0;
     WINDOW gray_window;
 
-    for (i = 1; i < row-1; ++i) {
+
+    for (i = 0; i < row-1; ++i) {
+        gray_window.shift_right();
+        gray_window.insert( (i == 0)? gray_buf-> getval(1, 1): gray_buf->getval(i-1, 1) , 0, 2);
+        gray_window.insert(gray_buf->getval(i, 1), 1, 2);
+        gray_window.insert(gray_buf->getval(i+1, 1), 2, 2);
+
         for (j = 0; j < col; ++j) {
 
             gray_window.shift_right();
-	        gray_window.insert(gray_buf->getval(i-1,j),0,2);
-	        gray_window.insert(gray_buf->getval(i,j),1,2);
-	        gray_window.insert(gray_buf->getval(i+1,j),2,2);
+	        gray_window.insert( (i == 0)? gray_buf-> getval(1, j): gray_buf->getval(i-1, j), 0, 2);
+	        gray_window.insert(gray_buf->getval(i,j), 1, 2);
+	        gray_window.insert(gray_buf->getval(i+1,j), 2, 2);
 
-            if (j < 2) {
+            if (j < 1) {
                 continue;
             }
 
@@ -109,6 +94,15 @@ void blur_img(GRAY_BUFFER* gray_buf, GRAY_BUFFER* blur_buf, int32_t row, int32_t
             blur_buf->insert_at(blur, i, j-1);
         }
     }
+
+#ifndef __SYNTHESIS__
+    // for(int i = 0 ; i < row ; i++) {
+    //     for(int j = 0 ; j < col ; j++) {
+    //         std::cout << blur_buf-> getval(i, j) << ' ' ;
+    //     }
+    //     std::cout << std::endl;
+    // }
+#endif
 }
 
 
@@ -117,28 +111,27 @@ void compute_dif(GRAY_BUFFER* blur_buf, DOUBLE_BUFFER* Ixx_buf,
 {
     int32_t i;
     int32_t j;
-    DIF_PIXEL Ix, Iy;
+    DIF_PIXEL Ix, Iy, zero = 0;
     DOUBLE_PIXEL Ixx, Iyy, Ixy;
-    WINDOW blur_window;
-    for (i = 1; i < row-1; ++i) {
-        for (j = 0; j < col; ++j) {
-            blur_window.shift_right();
-	        blur_window.insert(blur_buf->getval(i-1,j),0,2);
-	        blur_window.insert(blur_buf->getval(i,j),1,2);
-	        blur_window.insert(blur_buf->getval(i+1,j),2,2);
 
-            if (j < 2) {
-                continue;
-            }
+    for (i = 0; i < row; ++i) {
+        for (j = 0; j < col; ++j)
+        {
+            Ix = (j > 0 && j < col-1) ? blur_buf-> getval(i, j-1) - blur_buf-> getval(i, j+1) : zero;
+            Iy = (i > 0 && i < col-1) ? blur_buf-> getval(i-1, j) - blur_buf-> getval(i+1, j) : zero;
 
-            Ix = compute_ix(&blur_window);
-            Iy = compute_iy(&blur_window);
             Ixx = Ix * Ix;
             Iyy = Iy * Iy;
             Ixy = Ix * Iy;
-            Ixx_buf->insert_at(Ixx, i, j-1);
-            Iyy_buf->insert_at(Iyy, i, j-1);
-            Ixy_buf->insert_at(Ixy, i, j-1);
+
+            Ixx_buf->insert_at(Ixx, i, j);
+            Iyy_buf->insert_at(Iyy, i, j);
+            Ixy_buf->insert_at(Ixy, i, j);
+#ifndef __SYNTHESIS__
+    // if(i < 5 && j < 5)
+    // std::cout << i << ' ' << j << ' ' << Ix << ' ' << Iy << ' ' \
+    //         << Ixx << ' ' << Ixy << ' ' << Iyy << std::endl;
+#endif
         }
     }
 }
@@ -207,10 +200,11 @@ void compute_det_trace(TWICE_BUFFER* matrix, DOUBLE_BUFFER* det_buf,
     int32_t i;
     int32_t j;
     DOUBLE_PIXEL Ixx, Ixy, Iyy, det;
+
     for (i = 0; i < row; ++i) {
         for (j = 0; j < col; ++j) {
             Ixx = matrix-> getval(i, j);
-            Ixy = matrix-> getval(row, col + j);
+            Ixy = matrix-> getval(row + i, j);
             Ixx = matrix-> getval(row + i, col + j);
             // TODO: float precision
             det = Ixx * Iyy;
@@ -233,8 +227,8 @@ void compute_response(DOUBLE_BUFFER* det_buf, DOUBLE_BUFFER* trace_buf,
     int32_t j;
     for (i = 0; i < row; ++i) {
         for (j = 0; j < col; ++j) {
-            double response = double(det_buf-> getval(i, j)) / double(trace_buf-> getval(i, j));
-            response_buf->insert_at(GRAY_PIXEL(response), i, j);
+            double response = double(det_buf-> getval(i, j)) / (double(trace_buf-> getval(i, j)) + 1e-12);
+            response_buf->insert_at(round(response), i, j);
         }
     }
 }
@@ -342,7 +336,4 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t* corner, reg32_t
 #endif
 
     *corner = 84;
-    // for (i = 0; i< *corner; i++) {
-    //     pstrmOutput->write(test);
-    // }
 }
