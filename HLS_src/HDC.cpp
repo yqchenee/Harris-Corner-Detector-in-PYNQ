@@ -1,6 +1,9 @@
 #include "HCD.h"
 #include "cmath"
 
+#ifndef __SYNTHESIS__
+    #include <iostream>
+#endif
 
 /**
  * Calculate 1st derivative of image along x
@@ -226,6 +229,10 @@ void compute_det_trace(TWICE_BUFFER* matrix, ALL_BUFFER* det_buf,
             // TODO: float precision
             det -= Ixy * Ixy;
             det_buf->insert_at(det, i, j);
+#ifndef __SYNTHESIS__
+    // std::cout << i << ' ' << j << ' ' << Ixx << ' ' << Ixy << ' ' << Iyy \
+    //             << ' ' << trace_buf-> getval(i, j) << ' ' << det_buf-> getval(i, j) << std::endl;
+#endif
         }
     }
 }
@@ -243,29 +250,34 @@ void compute_response(ALL_BUFFER* det_buf, ALL_BUFFER* trace_buf,
     }
 }
 
-void output_maxima(ALL_BUFFER* response_buf, stream_to* pstrmOutput, int32_t row, int32_t col)
+void output_maxima(ALL_BUFFER* response_buf, stream_to& pstrmOutput, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
     POS corner_position;
     for(i = 1 ; i < row-1 ; i++) {
         for(j = 1 ; j < col-1 ; j++) {
+#ifndef __SYNTHESIS__
+    // std::cout << i << ' ' << j << ' ' << response_buf-> getval(i, j) << std::endl;
+#endif
             if(response_buf-> getval(i, j) > 100) {
                 corner_position.data.range(9, 0) = i;
                 corner_position.data.range(19, 10) = j;
-                pstrmOutput-> write(corner_position);
+                pstrmOutput.write(corner_position);
             }
         }
     }
 }
 
-void HCD(stream_ti* pstrmInput, stream_to* pstrmOutput, reg32_t* corner, reg32_t row, reg32_t col)
+void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t* corner, reg32_t row, reg32_t col)
 {
 #pragma HLS INTERFACE axis register both port=pstrmOutput
 #pragma HLS INTERFACE axis register both port=pstrmInput
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
 #pragma HLS INTERFACE s_axilite port=corner
+
+#pragma dataflow
 
     int32_t i;
     int32_t j;
@@ -285,32 +297,60 @@ void HCD(stream_ti* pstrmInput, stream_to* pstrmOutput, reg32_t* corner, reg32_t
 
     for (i = 0; i < row; ++i) {
         for (j = 0; j < col; ++j) {
-            input = pstrmInput->read();
+            input = pstrmInput.read();
              // Step 0: Convert to gray scale
             process_input(&input, &gray_buf, i, j);
         }
     }
 
+#ifndef __SYNTHESIS__
+	std::cout << "step 0 input" << std::endl;
+#endif
+
     // Step 1: Smooth the image by Gaussian kernel
     blur_img(&gray_buf, &blur_buf, row, col);
+
+#ifndef __SYNTHESIS__
+	std::cout << "step 1 smooth image" << std::endl;
+#endif
 
     // Step 2: Calculate Ix, Iy (1st derivative of image along x and y axis)
     // Step 3: Compute Ixx, Ixy, Iyy (Ixx = Ix*Ix, ...)
     compute_dif(&blur_buf, &Ixx_buf, &Iyy_buf,
             &Ixy_buf, row, col);
 
+#ifndef __SYNTHESIS__
+	std::cout << "step 2, 3 compute diff" << std::endl;
+#endif
+
     // Step 4: Compute Sxx, Sxy, Syy (weighted summation of Ixx, Ixy, Iyy in neighbor pixels)
     compute_sum(&Ixx_buf, &Ixy_buf, &Iyy_buf, &matrix, row, col);
+
+#ifndef __SYNTHESIS__
+	std::cout << "step 4 compute sum" << std::endl;
+#endif
 
     // Todo:
     // Step 5: Compute the det and trace of matrix M (M = [[Sxx, Sxy], [Sxy, Syy]])
     compute_det_trace(&matrix, &det_buf, &trace_buf, row, col);
 
+#ifndef __SYNTHESIS__
+	std::cout << "step 5 compute det trace" << std::endl;
+#endif
+
     // Step 6: Compute the response of the detector by det/(trace+1e-12)
     compute_response(&det_buf, &trace_buf, &response_buf, row, col);
 
+#ifndef __SYNTHESIS__
+	std::cout << "step 6 compute response" << std::endl;
+#endif
+
     // Step 7: Post processing
     output_maxima(&response_buf, pstrmOutput, row, col);
+
+#ifndef __SYNTHESIS__
+	std::cout << "step 7 output" << std::endl;
+#endif
 
     *corner = 84;
     // for (i = 0; i< *corner; i++) {

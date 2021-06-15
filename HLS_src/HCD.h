@@ -32,11 +32,14 @@ typedef ap_linebuffer<GRAY_PIXEL, MAX_HEIGHT, MAX_WIDTH> ALL_BUFFER;
 typedef ap_linebuffer<GRAY_PIXEL, 2*MAX_HEIGHT, 2*MAX_WIDTH> TWICE_BUFFER;
 
 void HCD(
-    stream_ti* pstrmInput, 
-    stream_to* pstrmOutput,
+    stream_ti& pstrmInput,
+    stream_to& pstrmOutput,
     reg32_t* corner,
     reg32_t row,
     reg32_t col
 );
+
+// void compute_det_trace(TWICE_BUFFER* matrix, ALL_BUFFER* det_buf,
+//         ALL_BUFFER* trace_buf, int32_t row, int32_t col);
 
 #endif

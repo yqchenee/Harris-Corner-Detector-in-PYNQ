@@ -61,7 +61,7 @@ int main () {
 
 
     // Hardware Function
-    HCD(&strmInput, &strmOutput, &out_corner, width, height);
+    HCD(strmInput, strmOutput, &out_corner, width, height);
 
     //check answer
     if(out_corner != corner_count) {
@@ -70,8 +70,7 @@ int main () {
         cout << "Your output: " << out_corner << endl;
     }
 
-    int i = 0;
-    while(!strmOutput.empty()) {
+    for(int i = 0 ; i < corner_count ; i++) {
         auto tmp = strmOutput.read().data;
         if(gold_output[i].data.range(9,0) != tmp.range(9,0)
           || gold_output[i].data.range(19,10) != tmp.range(19,10)) {
@@ -80,7 +79,6 @@ int main () {
             cout << "Golden: (" << gold_output[i].data.range(9,0) << "," << gold_output[i].data.range(19,10) << ")" << endl;
             cout << "Your output: (" << tmp.range(9,0) << "," << tmp.range(19,10) << ")" << endl;
         }
-        if(++i == corner_count) break;
     }
 
     return 0;
