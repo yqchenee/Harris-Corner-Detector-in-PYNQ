@@ -8,9 +8,9 @@
 /**
  * Calculate 1st derivative of image along x
  * **/
-GRAY_PIXEL compute_ix(WINDOW *window)
+DIF_PIXEL compute_ix(WINDOW *window)
 {
-    GRAY_PIXEL pixel = 0;
+    DIF_PIXEL pixel = 0;
     char i;
 
     const char op[3] = {1,0,-1};
@@ -25,9 +25,9 @@ GRAY_PIXEL compute_ix(WINDOW *window)
 /**
  * Calculate 1st derivative of image along y
  * **/
-GRAY_PIXEL compute_iy(WINDOW *window)
+DIF_PIXEL compute_iy(WINDOW *window)
 {
-    GRAY_PIXEL pixel = 0;
+    DIF_PIXEL pixel = 0;
     char i;
 
     const char op[3] = {1,0,-1};
@@ -66,11 +66,11 @@ GRAY_PIXEL Gaussian_filter_15(WINDOW* window)
 /**
  * Gaussian filter with sigma 1
  * **/
-GRAY_PIXEL Gaussian_filter_1(WINDOW* window)
+DOUBLE_PIXEL Gaussian_filter_1(DOUBLE_WINDOW* window)
 {
     char i,j;
     double sum = 0;
-    GRAY_PIXEL pixel =0;
+    DOUBLE_PIXEL pixel =0;
 
     const float op[3][3] = {
         {0.0751136, 0.123841, 0.0751136},
@@ -87,7 +87,7 @@ GRAY_PIXEL Gaussian_filter_1(WINDOW* window)
     return pixel;
 }
 
-void process_input(AXI_PIXEL* input, ALL_BUFFER* gray_buf, int32_t i, int32_t j)
+void process_input(AXI_PIXEL* input, GRAY_BUFFER* gray_buf, int32_t i, int32_t j)
 {
 
     GRAY_PIXEL input_gray_pix;
@@ -98,7 +98,7 @@ void process_input(AXI_PIXEL* input, ALL_BUFFER* gray_buf, int32_t i, int32_t j)
     gray_buf->insert_at(input_gray_pix, i, j);
 }
 
-void blur_img(ALL_BUFFER* gray_buf, ALL_BUFFER* blur_buf, int32_t row, int32_t col)
+void blur_img(GRAY_BUFFER* gray_buf, GRAY_BUFFER* blur_buf, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
@@ -124,12 +124,13 @@ void blur_img(ALL_BUFFER* gray_buf, ALL_BUFFER* blur_buf, int32_t row, int32_t c
 }
 
 
-void compute_dif(ALL_BUFFER* blur_buf, ALL_BUFFER* Ixx_buf,
-        ALL_BUFFER* Iyy_buf, ALL_BUFFER* Ixy_buf, int32_t row, int32_t col)
+void compute_dif(GRAY_BUFFER* blur_buf, DOUBLE_BUFFER* Ixx_buf,
+        DOUBLE_BUFFER* Iyy_buf, DOUBLE_BUFFER* Ixy_buf, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
-    GRAY_PIXEL Ix, Iy, Ixx, Iyy, Ixy;
+    DIF_PIXEL Ix, Iy;
+    DOUBLE_PIXEL Ixx, Iyy, Ixy;
     WINDOW blur_window;
     for (i = 1; i < row-1; ++i) {
         for (j = 0; j < col; ++j) {
@@ -154,16 +155,16 @@ void compute_dif(ALL_BUFFER* blur_buf, ALL_BUFFER* Ixx_buf,
     }
 }
 
-void compute_sum(ALL_BUFFER* Ixx_buf, ALL_BUFFER* Ixy_buf,
-        ALL_BUFFER* Iyy_buf, TWICE_BUFFER* matrix, int32_t row, int32_t col)
+void compute_sum(DOUBLE_BUFFER* Ixx_buf, DOUBLE_BUFFER* Ixy_buf,
+        DOUBLE_BUFFER* Iyy_buf, TWICE_BUFFER* matrix, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
 
-    GRAY_PIXEL Sxx, Sxy, Syy;
-    WINDOW Ixx_window;
-    WINDOW Iyy_window;
-    WINDOW Ixy_window;
+    DOUBLE_PIXEL Sxx, Sxy, Syy;
+    DOUBLE_WINDOW Ixx_window;
+    DOUBLE_WINDOW Iyy_window;
+    DOUBLE_WINDOW Ixy_window;
 
     for (i = 1; i < row-1; ++i) {
         for (j = 0; j < col; ++j) {
@@ -212,12 +213,12 @@ void compute_sum(ALL_BUFFER* Ixx_buf, ALL_BUFFER* Ixy_buf,
     }
 }
 
-void compute_det_trace(TWICE_BUFFER* matrix, ALL_BUFFER* det_buf,
-        ALL_BUFFER* trace_buf, int32_t row, int32_t col)
+void compute_det_trace(TWICE_BUFFER* matrix, DOUBLE_BUFFER* det_buf,
+        DOUBLE_BUFFER* trace_buf, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
-    GRAY_PIXEL Ixx, Ixy, Iyy, det;
+    DOUBLE_PIXEL Ixx, Ixy, Iyy, det;
     for (i = 0; i < row; ++i) {
         for (j = 0; j < col; ++j) {
             Ixx = matrix-> getval(i, j);
@@ -237,8 +238,8 @@ void compute_det_trace(TWICE_BUFFER* matrix, ALL_BUFFER* det_buf,
     }
 }
 
-void compute_response(ALL_BUFFER* det_buf, ALL_BUFFER* trace_buf,
-        ALL_BUFFER* response_buf, int32_t row, int32_t col)
+void compute_response(DOUBLE_BUFFER* det_buf, DOUBLE_BUFFER* trace_buf,
+        GRAY_BUFFER* response_buf, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
@@ -250,7 +251,7 @@ void compute_response(ALL_BUFFER* det_buf, ALL_BUFFER* trace_buf,
     }
 }
 
-void output_maxima(ALL_BUFFER* response_buf, stream_to& pstrmOutput, int32_t row, int32_t col)
+void output_maxima(GRAY_BUFFER* response_buf, stream_to& pstrmOutput, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
@@ -284,14 +285,14 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t* corner, reg32_t
     AXI_PIXEL input;
     POS test;
 
-    ALL_BUFFER gray_buf;
-    ALL_BUFFER blur_buf;
-    ALL_BUFFER Ixx_buf;
-    ALL_BUFFER Iyy_buf;
-    ALL_BUFFER Ixy_buf;
-    ALL_BUFFER det_buf;
-    ALL_BUFFER trace_buf;
-    ALL_BUFFER response_buf;
+    GRAY_BUFFER gray_buf;
+    GRAY_BUFFER blur_buf;
+    DOUBLE_BUFFER Ixx_buf;     // ap_int<9>
+    DOUBLE_BUFFER Iyy_buf;     // ap_int<9>
+    DOUBLE_BUFFER Ixy_buf;     // ap_int<9>
+    DOUBLE_BUFFER det_buf;
+    DOUBLE_BUFFER trace_buf;
+    GRAY_BUFFER response_buf;
 
     TWICE_BUFFER matrix;
 
