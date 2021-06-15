@@ -11,13 +11,7 @@
 DIF_PIXEL compute_ix(WINDOW *window)
 {
     DIF_PIXEL pixel = 0;
-    char i;
-
-    const char op[3] = {1,0,-1};
-
-    for(i=0; i < 3; i++){
-        pixel = window->getval(i,0) * op[i];
-    }
+    pixel = window->getval(0, 0) - window-> getval(0, 2);
 
     return pixel;
 }
@@ -28,13 +22,7 @@ DIF_PIXEL compute_ix(WINDOW *window)
 DIF_PIXEL compute_iy(WINDOW *window)
 {
     DIF_PIXEL pixel = 0;
-    char i;
-
-    const char op[3] = {1,0,-1};
-
-    for(i=0; i < 3; i++){
-        pixel = window->getval(0,i) * op[i];
-    }
+    pixel = window->getval(0, 0) - window-> getval(2, 0);
 
     return pixel;
 }
