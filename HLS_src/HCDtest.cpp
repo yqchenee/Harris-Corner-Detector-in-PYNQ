@@ -6,13 +6,15 @@
 using namespace std;
 
 //Arrays to send and receive data from the accelerator
-AXI_PIXEL input[MAX_WIDTH][MAX_HEIGHT];
-int gold_output[MAX_WIDTH][MAX_HEIGHT];
+static AXI_PIXEL input[MAX_WIDTH][MAX_HEIGHT];
+static int gold_output[MAX_WIDTH][MAX_HEIGHT];
 
 int main () {
     int x,y;
     int tmp;
+    AXI_PIXEL pixel;
     reg32_t width, height;
+    reg32_t corner_count = 0, out_corner;
 
     stream_ti strmInput;
     stream_to strmOutput;
@@ -22,8 +24,8 @@ int main () {
     fstream fin2;
 
     // change path if needed !
-    fin1.open("../../../../HLS_src/1_in.txt", ios::in);
-    fin2.open("../../../../HLS_src/1_gold_img.txt", ios::in);
+    fin1.open("../../../1_in.txt", ios::in);
+    fin2.open("../../../1_gold.txt", ios::in);
 
     if (!fin1.is_open() || !fin2.is_open()) {
       cout << "fail reading file" << endl;
@@ -36,7 +38,8 @@ int main () {
     height = MAX_HEIGHT;
     for(int i = 0; i < width; ++i) {
         for(int j = 0; j < height; ++j) {
-            fin1 >> tmp;
+            gold_output[i][j] = 0;
+        	fin1 >> tmp;
             input[i][j].data.range(7, 0) = tmp;
             fin1 >> tmp;
             input[i][j].data.range(15, 8) = tmp;
@@ -46,24 +49,42 @@ int main () {
         }
     }
 
-    for(int i = 0 ; i < width ; ++i) {
-        for(int j = 0 ; j < height ; ++j) {
-            fin2 >> tmp;
-            gold_output[i][j] = tmp;
-        }
+    while(!fin2.eof()){
+        fin2 >> x;
+        fin2 >> y;
+        gold_output[x][y] = 1;
     }
+    //for empty last line in the file
+    //corner_count = corner_count - 1;
 
     // Hardware Function
     HCD(strmInput, strmOutput, width, height);
+    for(int i = 0; i < width; ++i) {
+    	for(int j = 0; j < height; ++j) {
+    		tmp = strmOutput.read().data;
+    		if(gold_output[i][j] != tmp) {
+    			cout << "(" << i << ',' << j << ") Your output: " << tmp << ", Golden: " << gold_output[i][j] << endl;
+    		}
+    	}
+    }
 
-    // for(int i = 0 ; i < width ; ++i) {
-    //     for(int j = 0 ; j < height ; ++j) {
-    //         auto tmp = strmOutput.read().data;
-    //         if(gold_output[i][j] == 1 || tmp == 1) {
-    //             cout << '(' << i << ", " << j <<  "), gold: " << gold_output[i][j] << ", ANS: " << tmp << endl;
-    //         }
-    //     }
-    // }
+    //check answer
+    /*if(out_corner != corner_count) {
+        cout << "FAILED! wrong corner count" << endl;
+        cout << "Golden: " << corner_count << endl;
+        cout << "Your output: " << out_corner << endl;
+    }
+
+    for(int i = 0 ; i < corner_count ; i++) {
+        auto tmp = strmOutput.read().data;
+        if(gold_output[i].data.range(9,0) != tmp.range(9,0)
+          || gold_output[i].data.range(19,10) != tmp.range(19,10)) {
+            cout << "FAILED! wrong corner coordinate!" << endl;
+            cout << "In corner " << i << endl;
+            cout << "Golden: (" << gold_output[i].data.range(9,0) << "," << gold_output[i].data.range(19,10) << ")" << endl;
+            cout << "Your output: (" << tmp.range(9,0) << "," << tmp.range(19,10) << ")" << endl;
+        }
+    }*/
 
     return 0;
 }
