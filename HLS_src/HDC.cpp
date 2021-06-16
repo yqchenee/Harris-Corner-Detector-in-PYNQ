@@ -73,18 +73,18 @@ void blur_img(GRAY_BUFFER* gray_buf, GRAY_BUFFER* blur_buf, int32_t row, int32_t
     WINDOW gray_window;
 
 
-    for (i = 0; i < row-1; ++i) {
+    for (i = 0; i < row; ++i) {
         gray_window.shift_right();
         gray_window.insert( (i == 0)? gray_buf-> getval(1, 1): gray_buf->getval(i-1, 1) , 0, 2);
         gray_window.insert(gray_buf->getval(i, 1), 1, 2);
-        gray_window.insert(gray_buf->getval(i+1, 1), 2, 2);
+        gray_window.insert( (i == row-1)? gray_buf-> getval(row-2, 1): gray_buf->getval(i+1, 1) , 2, 2);
 
         for (j = 0; j < col; ++j) {
 
             gray_window.shift_right();
 	        gray_window.insert( (i == 0)? gray_buf-> getval(1, j): gray_buf->getval(i-1, j), 0, 2);
 	        gray_window.insert(gray_buf->getval(i,j), 1, 2);
-	        gray_window.insert(gray_buf->getval(i+1,j), 2, 2);
+            gray_window.insert( (i == row-1)? gray_buf-> getval(row-2, j): gray_buf->getval(i+1, j) , 2, 2);
 
             if (j < 1) {
                 continue;
@@ -118,7 +118,7 @@ void compute_dif(GRAY_BUFFER* blur_buf, DOUBLE_BUFFER* Ixx_buf,
         for (j = 0; j < col; ++j)
         {
             Ix = (j > 0 && j < col-1) ? blur_buf-> getval(i, j-1) - blur_buf-> getval(i, j+1) : zero;
-            Iy = (i > 0 && i < col-1) ? blur_buf-> getval(i-1, j) - blur_buf-> getval(i+1, j) : zero;
+            Iy = (i > 0 && i < row-1) ? blur_buf-> getval(i-1, j) - blur_buf-> getval(i+1, j) : zero;
 
             Ixx = Ix * Ix;
             Iyy = Iy * Iy;
@@ -237,22 +237,20 @@ void output_maxima(GRAY_BUFFER* response_buf, stream_to& pstrmOutput, int32_t ro
 {
     int32_t i;
     int32_t j;
-    POS corner_position;
-    for(i = 1 ; i < row-1 ; i++) {
-        for(j = 1 ; j < col-1 ; j++) {
-#ifndef __SYNTHESIS__
-    // std::cout << i << ' ' << j << ' ' << response_buf-> getval(i, j) << std::endl;
-#endif
+    BOOL_PIXEL ret_pixel;
+    for(i = 0 ; i < row ; i++) {
+        for(j = 0 ; j < col ; j++) {
             if(response_buf-> getval(i, j) > 100) {
-                corner_position.data.range(9, 0) = i;
-                corner_position.data.range(19, 10) = j;
-                pstrmOutput.write(corner_position);
+                ret_pixel.data = 1;
+            } else {
+                ret_pixel.data = 0;
             }
+            pstrmOutput.write(ret_pixel);
         }
     }
 }
 
-void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t* corner, reg32_t row, reg32_t col)
+void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col)
 {
 #pragma HLS INTERFACE axis register both port=pstrmOutput
 #pragma HLS INTERFACE axis register both port=pstrmInput
@@ -265,7 +263,6 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t* corner, reg32_t
     int32_t i;
     int32_t j;
     AXI_PIXEL input;
-    POS test;
 
     GRAY_BUFFER gray_buf;
     GRAY_BUFFER blur_buf;
@@ -335,5 +332,4 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t* corner, reg32_t
 	std::cout << "step 7 output" << std::endl;
 #endif
 
-    *corner = 84;
 }
