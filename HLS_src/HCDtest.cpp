@@ -6,8 +6,8 @@
 using namespace std;
 
 //Arrays to send and receive data from the accelerator
-static AXI_PIXEL input[MAX_WIDTH][MAX_HEIGHT];
-static int gold_output[MAX_WIDTH][MAX_HEIGHT];
+static AXI_PIXEL input[MAX_HEIGHT][MAX_WIDTH];
+static int gold_output[MAX_HEIGHT][MAX_WIDTH];
 
 int main () {
     int x,y;
@@ -24,8 +24,8 @@ int main () {
     fstream fin2;
 
     // change path if needed !
-    fin1.open("../../../1_in.txt", ios::in);
-    fin2.open("../../../1_gold.txt", ios::in);
+    fin1.open("../../../../HLS_src/1_in.txt", ios::in);
+    fin2.open("../../../../HLS_src/1_gold.txt", ios::in);
 
     if (!fin1.is_open() || !fin2.is_open()) {
       cout << "fail reading file" << endl;
@@ -58,7 +58,7 @@ int main () {
     //corner_count = corner_count - 1;
 
     // Hardware Function
-    HCD(strmInput, strmOutput, width, height);
+    HCD(strmInput, strmOutput, height, width);
     for(int i = 0; i < width; ++i) {
     	for(int j = 0; j < height; ++j) {
     		tmp = strmOutput.read().data;

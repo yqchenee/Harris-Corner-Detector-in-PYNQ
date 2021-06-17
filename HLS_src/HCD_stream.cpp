@@ -81,6 +81,7 @@ void blur_img(GRAY_BUFFER* gray_buf, GRAY_BUFFER* blur_buf, int32_t row, int32_t
         gray_window.insert( (i == MAX_HEIGHT-1)? gray_buf-> getval(MAX_HEIGHT-2, 1): gray_buf->getval(i+1, 1) , 2, 2);
 
         for (j = 0; j < MAX_WIDTH; ++j) {
+        #pragma HLS loop_tripcount max=256
 
             gray_window.shift_right();
 	        gray_window.insert( (i == 0)? gray_buf-> getval(1, j): gray_buf->getval(i-1, j), 0, 2);
@@ -104,12 +105,12 @@ void blur_img(GRAY_BUFFER* gray_buf, GRAY_BUFFER* blur_buf, int32_t row, int32_t
     }
 
 #ifndef __SYNTHESIS__
-    // for(int i = 250 ; i < MAX_HEIGHT ; i++) {
-    //     for(int j = 250 ; j < MAX_WIDTH ; j++) {
-    //         std::cout << blur_buf-> getval(i, j) << ' ' ;
-    //     }
-    //     std::cout << std::endl;
-    // }
+    for(int i = 250 ; i < MAX_HEIGHT ; i++) {
+        for(int j = 250 ; j < MAX_WIDTH ; j++) {
+            std::cout << blur_buf-> getval(i, j) << ' ' ;
+        }
+        std::cout << std::endl;
+    }
 #endif
 }
 
@@ -260,12 +261,12 @@ void output_maxima(GRAY_BUFFER* response_buf, stream_to& pstrmOutput, int32_t ro
 
 void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col)
 {
-#pragma HLS INTERFACE axis register both port=pstrmOutput
+#pragma HLS INTERFACE axis register both port=pstrmOutputx
 #pragma HLS INTERFACE axis register both port=pstrmInput
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
 
-#pragma dataflow
+// #pragma dataflow
 
     int32_t i;
     int32_t j;
