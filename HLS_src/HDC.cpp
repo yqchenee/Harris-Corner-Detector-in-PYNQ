@@ -236,6 +236,8 @@ void compute_response(DOUBLE_BUFFER* det_buf, DOUBLE_BUFFER* trace_buf,
     for (i = 0; i < MAX_HEIGHT; ++i) {
         for (j = 0; j < MAX_WIDTH; ++j) {
             double response = double(det_buf-> getval(i, j)) / (double(trace_buf-> getval(i, j)) + 1e-12);
+            response = (response > 255) ? 255 : response;
+            response = (response < 0) ? 0 : response;
             response_buf->insert_at(round(response), i, j);
         }
     }

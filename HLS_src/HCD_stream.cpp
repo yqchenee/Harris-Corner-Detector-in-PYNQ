@@ -32,11 +32,12 @@ GRAY_PIXEL Gaussian_filter_15(WINDOW* window)
 /**
  * Gaussian filter with sigma 1
  * **/
-DOUBLE_PIXEL Gaussian_filter_1(DOUBLE_WINDOW* window)
+template<typename P, typename W>
+P Gaussian_filter_1(W* window)
 {
     char i,j;
     double sum = 0;
-    DOUBLE_PIXEL pixel =0;
+    P pixel =0;
 
     const float op[3][3] = {
         {0.0751136, 0.123841, 0.0751136},
@@ -53,174 +54,205 @@ DOUBLE_PIXEL Gaussian_filter_1(DOUBLE_WINDOW* window)
     return pixel;
 }
 
-void process_input(AXI_PIXEL* input, GRAY_BUFFER* gray_buf, int32_t i, int32_t j)
+void process_input(stream_ti& pstrmInput, STREAM_GRAY& stream_gray)
 {
-
+    AXI_PIXEL input = pstrmInput.read();
     GRAY_PIXEL input_gray_pix;
-    input_gray_pix = (input->data.range(7,0)
-            + input->data.range(15,8)
-            + input->data.range(23,16))/3;
+    input_gray_pix = (input.data.range(7,0)
+            + input.data.range(15,8)
+            + input.data.range(23,16))/3;
 
-    gray_buf->insert_at(input_gray_pix, i, j);
+    stream_gray.write(input_gray_pix);
 }
 
-void blur_img(GRAY_BUFFER* gray_buf, GRAY_BUFFER* blur_buf, int32_t row, int32_t col)
+template<typename T>
+void blur_img(hls::stream<T>& stream_gray, hls::stream<T>& stream_blur, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
-    GRAY_PIXEL blur;
-    GRAY_PIXEL zero = 0;
-    WINDOW gray_window;
+    T                   blur;
+    ap_window<T, 3, 3>  window;
+    ap_linebuffer<T, 3, MAX_WIDTH>  buf;
 
+    for (i = 0 ; i < 2 ; i++) {
+        for (j = 0 ; j < MAX_WIDTH ; j++) {
+            buf.insert_at(stream_gray.read(), i, j);
+        }
+    }
+    /****
+     *  i = 0
+     ****/
+    // i = 0, j = -1
+    window.insert(buf.getval(1, 1), 0, 1);
+    window.insert(buf.getval(0, 1), 1, 1);
+    window.insert(buf.getval(1, 1), 2, 1);
+    // i = 0, j = 0
+    window.insert(buf.getval(1, 0), 0, 2);
+    window.insert(buf.getval(0, 0), 1, 2);
+    window.insert(buf.getval(1, 0), 2, 2);
 
-    for (i = 0; i < MAX_HEIGHT; ++i) {
+    for (j = 1; j < MAX_WIDTH; ++j) {
+        window.shift_right();
+        window.insert(buf.getval(1, j), 0, 2);
+        window.insert(buf.getval(0, j), 1, 2);
+        window.insert(buf.getval(1, j), 2, 2);
+
+        blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
+        stream_blur.write(blur);
+    }
+    // i = 1, j = MAX_WIDTH
+    window.shift_right();
+    window.insert(buf.getval(1, MAX_WIDTH-2), 0, 2);
+    window.insert(buf.getval(0, MAX_WIDTH-2), 1, 2);
+    window.insert(buf.getval(1, MAX_WIDTH-2), 2, 2);
+    blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
+    stream_blur.write(blur);
+
+    /*****
+     * i = 1 ~ MAX_HEIGHT-2
+     * ***/
+    for (i = 1; i < MAX_HEIGHT - 1; ++i) {
     #pragma HLS loop_tripcount max=256
-        gray_window.shift_right();
-        gray_window.insert( (i == 0)? gray_buf-> getval(1, 1): gray_buf->getval(i-1, 1) , 0, 2);
-        gray_window.insert(gray_buf->getval(i, 1), 1, 2);
-        gray_window.insert( (i == MAX_HEIGHT-1)? gray_buf-> getval(MAX_HEIGHT-2, 1): gray_buf->getval(i+1, 1) , 2, 2);
-
-        for (j = 0; j < MAX_WIDTH; ++j) {
-        #pragma HLS loop_tripcount max=256
-
-            gray_window.shift_right();
-	        gray_window.insert( (i == 0)? gray_buf-> getval(1, j): gray_buf->getval(i-1, j), 0, 2);
-	        gray_window.insert(gray_buf->getval(i,j), 1, 2);
-            gray_window.insert( (i == MAX_HEIGHT-1)? gray_buf-> getval(MAX_HEIGHT-2, j): gray_buf->getval(i+1, j) , 2, 2);
-
-            if (j < 1) {
-                continue;
-            }
-
-            blur = Gaussian_filter_15(&gray_window);
-            blur_buf->insert_at(blur, i, j-1);
+        for (j = 0 ; j < MAX_WIDTH ; j++) {
+            // read row i+1
+            buf.insert_at(stream_gray.read(), 2, j);
         }
 
-        gray_window.shift_right();
-        gray_window.insert( (i == 0)? gray_buf-> getval(1, MAX_WIDTH-2): gray_buf->getval(i-1, MAX_WIDTH-2), 0, 2);
-        gray_window.insert(gray_buf->getval(i, MAX_WIDTH-2), 1, 2);
-        gray_window.insert( (i == MAX_HEIGHT-1)? gray_buf-> getval(MAX_HEIGHT-2, MAX_WIDTH-2): gray_buf->getval(i+1, MAX_WIDTH-2) , 2, 2);
-        blur = Gaussian_filter_15(&gray_window);
-        blur_buf->insert_at(blur, i, MAX_WIDTH-1);
+        window.insert(buf.getval(0, 1), 0, 1);
+        window.insert(buf.getval(1, 1), 1, 1);
+        window.insert(buf.getval(2, 1), 2, 1);
+
+        window.insert(buf.getval(0, 0), 0, 2);
+        window.insert(buf.getval(1, 0), 1, 2);
+        window.insert(buf.getval(2, 0), 2, 2);
+
+        for (j = 1; j < MAX_WIDTH; ++j) {
+            window.shift_right();
+	        window.insert(buf.getval(0, j), 0, 2);
+	        window.insert(buf.getval(1, j), 1, 2);
+            window.insert(buf.getval(2, j), 2, 2);
+
+            blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
+            stream_blur.write(blur);
+        }
+
+        window.shift_right();
+        window.insert(buf.getval(0, MAX_WIDTH-2), 0, 2);
+        window.insert(buf.getval(1, MAX_WIDTH-2), 1, 2);
+        window.insert(buf.getval(2, MAX_WIDTH-2), 2, 2);
+        blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
+        stream_blur.write(blur);
+
+        buf.shift_down();
     }
 
-#ifndef __SYNTHESIS__
-    for(int i = 250 ; i < MAX_HEIGHT ; i++) {
-        for(int j = 250 ; j < MAX_WIDTH ; j++) {
-            std::cout << blur_buf-> getval(i, j) << ' ' ;
-        }
-        std::cout << std::endl;
+    /*****
+     * i = MAX_HEIGHT
+     * ***/
+    window.insert(buf.getval(0, 1), 0, 1);
+    window.insert(buf.getval(1, 1), 1, 1);
+    window.insert(buf.getval(0, 1), 2, 1);
+    window.insert(buf.getval(0, 0), 0, 2);
+    window.insert(buf.getval(1, 0), 1, 2);
+    window.insert(buf.getval(0, 0), 2, 2);
+
+    for (j = 1; j < MAX_WIDTH; ++j) {
+        window.shift_right();
+        window.insert(buf.getval(0, j), 0, 2);
+        window.insert(buf.getval(1, j), 1, 2);
+        window.insert(buf.getval(0, j), 2, 2);
+
+        blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
+        stream_blur.write(blur);
     }
-#endif
+    window.shift_right();
+    window.insert(buf.getval(0, MAX_WIDTH-2), 0, 2);
+    window.insert(buf.getval(1, MAX_WIDTH-2), 1, 2);
+    window.insert(buf.getval(0, MAX_WIDTH-2), 2, 2);
+    blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
+    stream_blur.write(blur);
+
+// #ifndef __SYNTHESIS__
+//     for(int i = 0 ; i < 5 ; i++) {
+//         for(int j = 0 ; j < 5 ; j++) {
+//             std::cout << blur_buf-> getval(i, j) << ' ' ;
+//         }
+//         std::cout << std::endl;
+//     }
+// #endif
 }
 
 
-void compute_dif(GRAY_BUFFER* blur_buf, DOUBLE_BUFFER* Ixx_buf,
-        DOUBLE_BUFFER* Iyy_buf, DOUBLE_BUFFER* Ixy_buf, int32_t row, int32_t col)
+void compute_dif(STREAM_GRAY& stream_blur, STREAM_DOUBLE& stream_Ixx,
+        STREAM_DOUBLE& stream_Iyy, STREAM_DOUBLE& stream_Ixy, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
-    DIF_PIXEL Ix, Iy, zero = 0;
-    DOUBLE_PIXEL Ixx, Iyy, Ixy;
+    DIF_PIXEL       Ix, Iy, zero = 0;
+    DOUBLE_PIXEL    Ixx, Iyy, Ixy;
+    GRAY_BUFFER_3   blur_buf;
+
+    for (j = 0 ; j < MAX_WIDTH ; j++) {
+        blur_buf.insert_at(stream_blur.read(), 2, j);
+    }
 
     for (i = 0; i < MAX_HEIGHT; ++i) {
+        blur_buf.shift_down();
+        for (j = 0 ; j < MAX_WIDTH ; j++) {
+            blur_buf.insert_at((i == MAX_HEIGHT-1) ? GRAY_PIXEL(0) : stream_blur.read(), 2, j);
+        }
+
         for (j = 0; j < MAX_WIDTH; ++j)
         {
-            Ix = (j > 0 && j < MAX_WIDTH-1) ? blur_buf-> getval(i, j-1) - blur_buf-> getval(i, j+1) : zero;
-            Iy = (i > 0 && i < MAX_HEIGHT-1) ? blur_buf-> getval(i-1, j) - blur_buf-> getval(i+1, j) : zero;
+            Ix = (j > 0 && j < MAX_WIDTH-1) ? blur_buf.getval(1, j-1) - blur_buf.getval(1, j+1) : zero;
+            Iy = (i > 0 && i < MAX_HEIGHT-1) ? blur_buf.getval(0, j) - blur_buf.getval(2, j) : zero;
 
             Ixx = Ix * Ix;
             Iyy = Iy * Iy;
             Ixy = Ix * Iy;
 
-            Ixx_buf->insert_at(Ixx, i, j);
-            Iyy_buf->insert_at(Iyy, i, j);
-            Ixy_buf->insert_at(Ixy, i, j);
-#ifndef __SYNTHESIS__
-    // if(i < 5 && j < 5)
-    // std::cout << i << ' ' << j << ' ' << Ix << ' ' << Iy << ' ' \
-    //         << Ixx << ' ' << Ixy << ' ' << Iyy << std::endl;
-#endif
+            stream_Ixx.write(Ixx);
+            stream_Iyy.write(Iyy);
+            stream_Ixy.write(Ixy);
+// #ifndef __SYNTHESIS__
+//     if(i > 250 && j > 250)
+//     std::cout << i << ' ' << j << ' ' << Ix << ' ' << Iy << ' ' \
+//             << Ixx << ' ' << Ixy << ' ' << Iyy << std::endl;
+// #endif
         }
     }
 }
 
-void compute_sum(DOUBLE_BUFFER* Ixx_buf, DOUBLE_BUFFER* Ixy_buf,
-        DOUBLE_BUFFER* Iyy_buf, TWICE_BUFFER* matrix, int32_t row, int32_t col)
+void blur_diff(STREAM_DOUBLE& stream_Ixx, STREAM_DOUBLE& stream_Iyy, STREAM_DOUBLE& stream_Ixy,
+        STREAM_DOUBLE& stream_Sxx, STREAM_DOUBLE& stream_Syy, STREAM_DOUBLE& stream_Sxy,
+        int32_t row, int32_t col)
+{
+    blur_img<DOUBLE_PIXEL>(stream_Ixx, stream_Sxx, row, col);
+    blur_img<DOUBLE_PIXEL>(stream_Iyy, stream_Syy, row, col);
+    blur_img<DOUBLE_PIXEL>(stream_Ixy, stream_Sxy, row, col);
+}
+
+void compute_det_trace(STREAM_DOUBLE& stream_Sxx, STREAM_DOUBLE& stream_Syy, STREAM_DOUBLE& stream_Sxy,
+        STREAM_DOUBLE_DOUBLE& stream_det, STREAM_DOUBLE_DOUBLE& stream_trace,
+        int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
-
     DOUBLE_PIXEL Sxx, Sxy, Syy;
-    DOUBLE_WINDOW Ixx_window;
-    DOUBLE_WINDOW Iyy_window;
-    DOUBLE_WINDOW Ixy_window;
-
-    for (i = 1; i < MAX_HEIGHT-1; ++i) {
-        for (j = 0; j < MAX_WIDTH; ++j) {
-            Ixx_window.shift_right();
-	        Ixx_window.insert(Ixx_buf->getval(i-1,j),0,2);
-	        Ixx_window.insert(Ixx_buf->getval(i,j),1,2);
-	        Ixx_window.insert(Ixx_buf->getval(i+1,j),2,2);
-
-            if (j < 2) {
-                continue;
-            }
-            Sxx = Gaussian_filter_1(&Ixx_window);
-            matrix->insert_at(Sxx, i, j-1);
-        }
-    }
-
-    for (i = 1; i < MAX_HEIGHT-1; ++i) {
-        for (j = 0; j < MAX_WIDTH; ++j) {
-            Iyy_window.shift_right();
-	        Iyy_window.insert(Iyy_buf->getval(i-1,j),0,2);
-	        Iyy_window.insert(Iyy_buf->getval(i,j),1,2);
-	        Iyy_window.insert(Iyy_buf->getval(i+1,j),2,2);
-
-            if (j < 2) {
-                continue;
-            }
-            Syy = Gaussian_filter_1(&Iyy_window);
-            matrix->insert_at(Syy, MAX_HEIGHT + i, MAX_WIDTH + j-1);
-        }
-    }
-
-    for (i = 1; i < MAX_HEIGHT-1; ++i) {
-        for (j = 0; j < MAX_WIDTH; ++j) {
-            Ixy_window.shift_right();
-	        Ixy_window.insert(Ixy_buf->getval(i-1,j),0,2);
-	        Ixy_window.insert(Ixy_buf->getval(i,j),1,2);
-	        Ixy_window.insert(Ixy_buf->getval(i+1,j),2,2);
-
-            if (j < 2) {
-                continue;
-            }
-            Sxy = Gaussian_filter_1(&Ixy_window);
-            matrix->insert_at(Sxy, MAX_HEIGHT + i, j-1);
-            matrix->insert_at(Sxy, i, MAX_WIDTH + j-1);
-        }
-    }
-}
-
-void compute_det_trace(TWICE_BUFFER* matrix, DOUBLE_BUFFER* det_buf,
-        DOUBLE_BUFFER* trace_buf, int32_t row, int32_t col)
-{
-    int32_t i;
-    int32_t j;
-    DOUBLE_PIXEL Ixx, Ixy, Iyy, det;
+    DOUBLE_DOUBLE_PIXEL det;
+    DOUBLE_DOUBLE_PIXEL trace;
 
     for (i = 0; i < MAX_HEIGHT; ++i) {
         for (j = 0; j < MAX_WIDTH; ++j) {
-            Ixx = matrix-> getval(i, j);
-            Ixy = matrix-> getval(MAX_HEIGHT + i, j);
-            Ixx = matrix-> getval(MAX_HEIGHT + i, MAX_WIDTH + j);
-            // TODO: float precision
-            det = Ixx * Iyy;
-            trace_buf-> insert_at(det, i, j);
-            // TODO: float precision
-            det -= Ixy * Ixy;
-            det_buf->insert_at(det, i, j);
+            Sxx = stream_Sxx.read();
+            Sxy = stream_Sxy.read();
+            Syy = stream_Syy.read();
+
+            trace = Sxx * Syy;
+            stream_trace.write(trace);
+
+            det = trace - Sxy * Sxy;
+            stream_det.write(det);
 #ifndef __SYNTHESIS__
     // std::cout << i << ' ' << j << ' ' << Ixx << ' ' << Ixy << ' ' << Iyy \
     //             << ' ' << trace_buf-> getval(i, j) << ' ' << det_buf-> getval(i, j) << std::endl;
@@ -229,27 +261,27 @@ void compute_det_trace(TWICE_BUFFER* matrix, DOUBLE_BUFFER* det_buf,
     }
 }
 
-void compute_response(DOUBLE_BUFFER* det_buf, DOUBLE_BUFFER* trace_buf,
-        GRAY_BUFFER* response_buf, int32_t row, int32_t col)
+void compute_response(STREAM_DOUBLE_DOUBLE& stream_det, STREAM_DOUBLE_DOUBLE& stream_trace,
+    STREAM_DOUBLE_DOUBLE& stream_response, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
     for (i = 0; i < MAX_HEIGHT; ++i) {
         for (j = 0; j < MAX_WIDTH; ++j) {
-            double response = double(det_buf-> getval(i, j)) / (double(trace_buf-> getval(i, j)) + 1e-12);
-            response_buf->insert_at(round(response), i, j);
+            double response = double(stream_det.read()) / (double(stream_trace.read()) + 1e-12);
+            stream_response.write(round(response));
         }
     }
 }
 
-void output_maxima(GRAY_BUFFER* response_buf, stream_to& pstrmOutput, int32_t row, int32_t col)
+void output_maxima(STREAM_DOUBLE_DOUBLE& stream_response, stream_to& pstrmOutput, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
     BOOL_PIXEL ret_pixel;
     for(i = 0 ; i < MAX_HEIGHT ; i++) {
         for(j = 0 ; j < MAX_WIDTH ; j++) {
-            if(response_buf-> getval(i, j) > 100) {
+            if(stream_response.read() > 100) {
                 ret_pixel.data = 1;
             } else {
                 ret_pixel.data = 0;
@@ -261,33 +293,36 @@ void output_maxima(GRAY_BUFFER* response_buf, stream_to& pstrmOutput, int32_t ro
 
 void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col)
 {
-#pragma HLS INTERFACE axis register both port=pstrmOutputx
+#pragma HLS INTERFACE axis register both port=pstrmOutput
 #pragma HLS INTERFACE axis register both port=pstrmInput
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
 
-// #pragma dataflow
+#pragma dataflow
 
     int32_t i;
     int32_t j;
-    AXI_PIXEL input;
 
-    GRAY_BUFFER gray_buf;
-    GRAY_BUFFER blur_buf;
-    DOUBLE_BUFFER Ixx_buf;     // ap_int<9>
-    DOUBLE_BUFFER Iyy_buf;     // ap_int<9>
-    DOUBLE_BUFFER Ixy_buf;     // ap_int<9>
-    DOUBLE_BUFFER det_buf;
-    DOUBLE_BUFFER trace_buf;
-    GRAY_BUFFER response_buf;
+    STREAM_GRAY stream_gray;   // 8
+    STREAM_GRAY stream_blur;
 
-    TWICE_BUFFER matrix;
+    STREAM_DOUBLE stream_Ixx;  // 17
+    STREAM_DOUBLE stream_Ixy;
+    STREAM_DOUBLE stream_Iyy;
+
+    STREAM_DOUBLE stream_Sxx;  // 17
+    STREAM_DOUBLE stream_Sxy;
+    STREAM_DOUBLE stream_Syy;
+
+    STREAM_DOUBLE_DOUBLE stream_det;  // 34
+    STREAM_DOUBLE_DOUBLE stream_trace;
+
+    STREAM_DOUBLE_DOUBLE stream_response;
 
     for (i = 0; i < MAX_HEIGHT; ++i) {
         for (j = 0; j < MAX_WIDTH; ++j) {
-            input = pstrmInput.read();
              // Step 0: Convert to gray scale
-            process_input(&input, &gray_buf, i, j);
+            process_input(pstrmInput, stream_gray);
         }
     }
 
@@ -296,7 +331,7 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col
 #endif
 
     // Step 1: Smooth the image by Gaussian kernel
-    blur_img(&gray_buf, &blur_buf, row, col);
+    blur_img<GRAY_PIXEL>(stream_gray, stream_blur, row, col);
 
 #ifndef __SYNTHESIS__
 	std::cout << "step 1 smooth image" << std::endl;
@@ -304,15 +339,16 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col
 
     // Step 2: Calculate Ix, Iy (1st derivative of image along x and y axis)
     // Step 3: Compute Ixx, Ixy, Iyy (Ixx = Ix*Ix, ...)
-    compute_dif(&blur_buf, &Ixx_buf, &Iyy_buf,
-            &Ixy_buf, row, col);
+    compute_dif(stream_blur, stream_Ixx, stream_Iyy,
+            stream_Ixy, row, col);
 
 #ifndef __SYNTHESIS__
 	std::cout << "step 2, 3 compute diff" << std::endl;
 #endif
 
     // Step 4: Compute Sxx, Sxy, Syy (weighted summation of Ixx, Ixy, Iyy in neighbor pixels)
-    compute_sum(&Ixx_buf, &Ixy_buf, &Iyy_buf, &matrix, row, col);
+    blur_diff(stream_Ixx, stream_Iyy, stream_Ixy,
+        stream_Sxx, stream_Syy, stream_Sxy, row, col);
 
 #ifndef __SYNTHESIS__
 	std::cout << "step 4 compute sum" << std::endl;
@@ -320,21 +356,21 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col
 
     // Todo:
     // Step 5: Compute the det and trace of matrix M (M = [[Sxx, Sxy], [Sxy, Syy]])
-    compute_det_trace(&matrix, &det_buf, &trace_buf, row, col);
+    compute_det_trace(stream_Sxx, stream_Syy, stream_Sxy, stream_det, stream_trace, row, col);
 
 #ifndef __SYNTHESIS__
 	std::cout << "step 5 compute det trace" << std::endl;
 #endif
 
     // Step 6: Compute the response of the detector by det/(trace+1e-12)
-    compute_response(&det_buf, &trace_buf, &response_buf, row, col);
+    compute_response(stream_det, stream_trace, stream_response, row, col);
 
 #ifndef __SYNTHESIS__
 	std::cout << "step 6 compute response" << std::endl;
 #endif
 
     // Step 7: Post processing
-    output_maxima(&response_buf, pstrmOutput, row, col);
+    output_maxima(stream_response, pstrmOutput, row, col);
 
 #ifndef __SYNTHESIS__
 	std::cout << "step 7 output" << std::endl;
