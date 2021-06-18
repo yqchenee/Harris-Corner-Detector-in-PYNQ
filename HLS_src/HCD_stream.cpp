@@ -70,116 +70,45 @@ void blur_img(hls::stream<T>& stream_gray, hls::stream<T>& stream_blur, int32_t 
 {
     int32_t i;
     int32_t j;
-    T                   blur;
+    T                   blur, input;
     ap_window<T, 3, 3>  window;
     ap_linebuffer<T, 3, MAX_WIDTH>  buf;
 
-    for (i = 0 ; i < 2 ; i++) {
-        for (j = 0 ; j < MAX_WIDTH ; j++) {
-            buf.insert_at(stream_gray.read(), i, j);
-        }
-    }
-    /****
-     *  i = 0
-     ****/
-    // i = 0, j = -1
-    window.insert(buf.getval(1, 1), 0, 1);
-    window.insert(buf.getval(0, 1), 1, 1);
-    window.insert(buf.getval(1, 1), 2, 1);
-    // i = 0, j = 0
-    window.insert(buf.getval(1, 0), 0, 2);
-    window.insert(buf.getval(0, 0), 1, 2);
-    window.insert(buf.getval(1, 0), 2, 2);
+    for (i = 0 ; i < MAX_HEIGHT+1; i++) {
+        for (j = 0; j < MAX_WIDTH+1; j++) {
+            if (j < MAX_WIDTH)
+                buf.shift_up(j);
 
-    for (j = 1; j < MAX_WIDTH; ++j) {
-        window.shift_right();
-        window.insert(buf.getval(1, j), 0, 2);
-        window.insert(buf.getval(0, j), 1, 2);
-        window.insert(buf.getval(1, j), 2, 2);
+            if (i < MAX_HEIGHT & j < MAX_WIDTH) {
+                input = stream_gray.read();
+                buf.insert_bottom(input, j);
+            }
 
-        blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
-        stream_blur.write(blur);
-    }
-    // i = 1, j = MAX_WIDTH
-    window.shift_right();
-    window.insert(buf.getval(1, MAX_WIDTH-2), 0, 2);
-    window.insert(buf.getval(0, MAX_WIDTH-2), 1, 2);
-    window.insert(buf.getval(1, MAX_WIDTH-2), 2, 2);
-    blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
-    stream_blur.write(blur);
-
-    /*****
-     * i = 1 ~ MAX_HEIGHT-2
-     * ***/
-    for (i = 1; i < MAX_HEIGHT - 1; ++i) {
-    #pragma HLS loop_tripcount max=256
-        for (j = 0 ; j < MAX_WIDTH ; j++) {
-            // read row i+1
-            buf.insert_at(stream_gray.read(), 2, j);
-        }
-
-        window.insert(buf.getval(0, 1), 0, 1);
-        window.insert(buf.getval(1, 1), 1, 1);
-        window.insert(buf.getval(2, 1), 2, 1);
-
-        window.insert(buf.getval(0, 0), 0, 2);
-        window.insert(buf.getval(1, 0), 1, 2);
-        window.insert(buf.getval(2, 0), 2, 2);
-
-        for (j = 1; j < MAX_WIDTH; ++j) {
             window.shift_right();
-	        window.insert(buf.getval(0, j), 0, 2);
-	        window.insert(buf.getval(1, j), 1, 2);
-            window.insert(buf.getval(2, j), 2, 2);
+
+            if (j < MAX_WIDTH) {
+	            window.insert(buf.getval(2,j),0,2);
+	            window.insert(buf.getval(1,j),1,2);
+	            window.insert(input,2,2);
+            }
+
+            if (i == 0 || j == 0)
+                continue;
+
+            if(j == 1)
+                window.rreflect();
+            else if (j == MAX_WIDTH)
+                window.lreflect();
+
+            if (i == 1) 
+                window.dreflect();
+            else if (i == MAX_HEIGHT)
+                window.ureflect();
 
             blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
             stream_blur.write(blur);
         }
-
-        window.shift_right();
-        window.insert(buf.getval(0, MAX_WIDTH-2), 0, 2);
-        window.insert(buf.getval(1, MAX_WIDTH-2), 1, 2);
-        window.insert(buf.getval(2, MAX_WIDTH-2), 2, 2);
-        blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
-        stream_blur.write(blur);
-
-        buf.shift_down();
     }
-
-    /*****
-     * i = MAX_HEIGHT
-     * ***/
-    window.insert(buf.getval(0, 1), 0, 1);
-    window.insert(buf.getval(1, 1), 1, 1);
-    window.insert(buf.getval(0, 1), 2, 1);
-    window.insert(buf.getval(0, 0), 0, 2);
-    window.insert(buf.getval(1, 0), 1, 2);
-    window.insert(buf.getval(0, 0), 2, 2);
-
-    for (j = 1; j < MAX_WIDTH; ++j) {
-        window.shift_right();
-        window.insert(buf.getval(0, j), 0, 2);
-        window.insert(buf.getval(1, j), 1, 2);
-        window.insert(buf.getval(0, j), 2, 2);
-
-        blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
-        stream_blur.write(blur);
-    }
-    window.shift_right();
-    window.insert(buf.getval(0, MAX_WIDTH-2), 0, 2);
-    window.insert(buf.getval(1, MAX_WIDTH-2), 1, 2);
-    window.insert(buf.getval(0, MAX_WIDTH-2), 2, 2);
-    blur = Gaussian_filter_1<T, ap_window<T, 3, 3> >(&window);
-    stream_blur.write(blur);
-
-// #ifndef __SYNTHESIS__
-//     for(int i = 0 ; i < 5 ; i++) {
-//         for(int j = 0 ; j < 5 ; j++) {
-//             std::cout << blur_buf-> getval(i, j) << ' ' ;
-//         }
-//         std::cout << std::endl;
-//     }
-// #endif
 }
 
 
@@ -214,11 +143,6 @@ void compute_dif(STREAM_GRAY& stream_blur, STREAM_DOUBLE& stream_Ixx,
             stream_Ixx.write(Ixx);
             stream_Iyy.write(Iyy);
             stream_Ixy.write(Ixy);
-// #ifndef __SYNTHESIS__
-//     if(i > 250 && j > 250)
-//     std::cout << i << ' ' << j << ' ' << Ix << ' ' << Iy << ' ' \
-//             << Ixx << ' ' << Ixy << ' ' << Iyy << std::endl;
-// #endif
         }
     }
 }
@@ -297,7 +221,6 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col
 #pragma HLS INTERFACE axis register both port=pstrmInput
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
-
 #pragma dataflow
 
     int32_t i;
@@ -318,6 +241,18 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col
     STREAM_DOUBLE_DOUBLE stream_trace;
 
     STREAM_DOUBLE_DOUBLE stream_response;
+
+#pragma HLS stream variable=stream_gray depth=1
+#pragma HLS stream variable=stream_blur depth=1
+#pragma HLS stream variable=stream_Ixx depth=1
+#pragma HLS stream variable=stream_Ixy depth=1
+#pragma HLS stream variable=stream_Iyy depth=1
+#pragma HLS stream variable=stream_Sxx depth=1
+#pragma HLS stream variable=stream_Sxy depth=1
+#pragma HLS stream variable=stream_Syy depth=1
+#pragma HLS stream variable=stream_det depth=1
+#pragma HLS stream variable=stream_trace depth=1
+#pragma HLS stream variable=stream_response depth=1
 
     for (i = 0; i < MAX_HEIGHT; ++i) {
         for (j = 0; j < MAX_WIDTH; ++j) {
