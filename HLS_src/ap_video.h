@@ -191,6 +191,10 @@ template <typename T, int LROW, int LCOL>
   void shift_up();
   void shift_down();
   void insert(T value, int row,int col);
+  void rreflect();
+  void lreflect();
+  void ureflect();
+  void dreflect();
   T getval(int RowIndex,int ColIndex);
 };
 
@@ -274,6 +278,50 @@ template <typename T, int LROW, int LCOL>
 {
 #pragma AP inline
   M[row][col] = value;
+}
+
+template <typename T, int LROW, int LCOL>
+  void ap_window<T,LROW,LCOL>::rreflect()
+{
+#pragma AP inline
+  int i;
+  for(i = 0; i < LROW; i++){
+#pragma AP unroll
+      M[i][0] = M[i][LCOL-1];
+  }
+}
+
+template <typename T, int LROW, int LCOL>
+  void ap_window<T,LROW,LCOL>::lreflect()
+{
+#pragma AP inline
+  int i;
+  for(i = 0; i < LROW; i++){
+#pragma AP unroll
+      M[i][LCOL-1] = M[i][0];
+  }
+}
+
+template <typename T, int LROW, int LCOL>
+  void ap_window<T,LROW,LCOL>::ureflect()
+{
+#pragma AP inline
+  int j;
+  for(j = 0; j < LCOL; j++){
+#pragma AP unroll
+      M[LROW-1][j] = M[0][j];
+  }
+}
+
+template <typename T, int LROW, int LCOL>
+  void ap_window<T,LROW,LCOL>::dreflect()
+{
+#pragma AP inline
+  int j;
+  for(j = 0; j < LCOL; j++){
+#pragma AP unroll
+      M[0][j] = M[LROW-1][j];
+  }
 }
 
 /* Window getval
