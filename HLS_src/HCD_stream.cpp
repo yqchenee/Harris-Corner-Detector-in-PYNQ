@@ -100,7 +100,7 @@ void blur_img(hls::stream<T>& stream_gray, hls::stream<T>& stream_blur, int32_t 
             else if (j == MAX_WIDTH)
                 window.lreflect();
 
-            if (i == 1) 
+            if (i == 1)
                 window.dreflect();
             else if (i == MAX_HEIGHT)
                 window.ureflect();
@@ -134,24 +134,14 @@ void compute_dif(STREAM_GRAY& stream_blur, STREAM_DOUBLE& stream_Ixx,
             if (j == 0 || i == 0)
                 continue;
 
-            if (j == 1 || i == 1 || i == MAX_HEIGHT ||j == MAX_WIDTH) {
-                #ifndef __SYNTHESIS__
-                	std::cout << "0 0" << std::endl;
-                #endif
-                stream_Ixx.write(zero);
-                stream_Iyy.write(zero);
-                stream_Ixy.write(zero);
-            } else {
-                Ix = blur_buf.getval(2, j-2) - blur_buf.getval(2, j);
-                Iy = blur_buf.getval(2, j-2) - blur_buf.getval(0, j-2);
+            else {
+                Ix = (j == 1 | j == MAX_WIDTH) ? zero : blur_buf.getval(1, j-2) - blur_buf.getval(1, j);
+                Iy = (i == 1 | i == MAX_HEIGHT) ? zero : blur_buf.getval(2, j-1) - blur_buf.getval(0, j-1);
 
                 Ixx = Ix * Ix;
                 Iyy = Iy * Iy;
                 Ixy = Ix * Iy;
 
-                #ifndef __SYNTHESIS__
-                	std::cout << Ix << " " << Iy << std::endl;
-                #endif
                 stream_Ixx.write(Ixx);
                 stream_Iyy.write(Iyy);
                 stream_Ixy.write(Ixy);
