@@ -2,6 +2,7 @@
 #define _HCD_H_
 #include <ap_axi_sdata.h>
 #include <hls_stream.h>
+#include <ap_fixed.h>
 #include "ap_video.h"
 
 #define MAX_WIDTH 256

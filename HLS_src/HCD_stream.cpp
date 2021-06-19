@@ -3,6 +3,7 @@
 
 #ifndef __SYNTHESIS__
     #include <iostream>
+    using namespace std;
 #endif
 
 /**
@@ -36,10 +37,14 @@ template<typename P, typename W>
 P Gaussian_filter_1(W* window)
 {
     char i,j;
-    double sum = 0;
+    ap_fixed<22, 16> sum = 0;
     P pixel =0;
 
-    const float op[3][3] = {
+    // float op[3];
+    // init_gaussian_window(op);
+
+    ap_fixed<8, 2> op[3][3] =
+    {
         {0.0751136, 0.123841, 0.0751136},
         {0.123841, 0.20418, 0.123841},
         {0.0751136, 0.123841, 0.0751136}
@@ -47,10 +52,11 @@ P Gaussian_filter_1(W* window)
 
     for (i = 0; i < 3; i++) {
         for (j = 0; j < 3; j++) {
+            #pragma HLS pipeline
             sum += window->getval(i,j) * op[i][j];
         }
     }
-    pixel = round(sum);
+    pixel = P(sum);
     return pixel;
 }
 
@@ -270,6 +276,10 @@ void compute_response(STREAM_DOUBLE_DOUBLE& stream_det, STREAM_DOUBLE_DOUBLE& st
         for (j = 0; j < MAX_WIDTH; ++j) {
             double response = double(stream_det.read()) / (double(stream_trace.read()) + 1e-12);
             stream_response.write(round(response));
+            // ap_fixed<42, 34> det = stream_det.read();
+            // ap_fixed<42, 34> trace = ap_fixed<42, 34>(stream_trace.read()) + ap_fixed<42, 34>(0.005);
+            // ap_fixed<42, 34> response = det / trace;
+            // stream_response.write(DOUBLE_DOUBLE_PIXEL(response));
         }
     }
 }
@@ -298,7 +308,7 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
 
-#pragma dataflow
+#pragma HLS dataflow
 
     int32_t i;
     int32_t j;
@@ -319,7 +329,9 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col
 
     STREAM_DOUBLE_DOUBLE stream_response;
 
+    Proc_input_1:
     for (i = 0; i < MAX_HEIGHT; ++i) {
+        Proc_input_2:
         for (j = 0; j < MAX_WIDTH; ++j) {
              // Step 0: Convert to gray scale
             process_input(pstrmInput, stream_gray);
