@@ -201,12 +201,13 @@ void compute_response(STREAM_DOUBLE_DOUBLE& stream_det, STREAM_DOUBLE_DOUBLE& st
     int32_t j;
     for (i = 0; i < MAX_HEIGHT; ++i) {
         for (j = 0; j < MAX_WIDTH; ++j) {
-            double response = double(stream_det.read()) / (double(stream_trace.read()) + 1e-12);
-            stream_response.write(round(response));
-            // ap_fixed<42, 34> det = stream_det.read();
-            // ap_fixed<42, 34> trace = ap_fixed<42, 34>(stream_trace.read()) + ap_fixed<42, 34>(0.005);
-            // ap_fixed<42, 34> response = det / trace;
-            // stream_response.write(DOUBLE_DOUBLE_PIXEL(response));
+            // double response = double(stream_det.read()) / (double(stream_trace.read()) + 1e-12);
+            // stream_response.write(round(response));
+            ap_fixed<44, 34> det = stream_det.read();
+            ap_fixed<44, 34> trace = ap_fixed<44, 34>(stream_trace.read());
+            ap_fixed<44, 34> response = det - ap_fixed<12, 2>(0.05) * trace;
+            stream_response.write(DOUBLE_DOUBLE_PIXEL(response));
+            // cout << i << ' ' << j << ' ' << DOUBLE_DOUBLE_PIXEL(response) << endl;
         }
     }
 }
@@ -218,7 +219,8 @@ void output_maxima(STREAM_DOUBLE_DOUBLE& stream_response, stream_to& pstrmOutput
     BOOL_PIXEL ret_pixel;
     for(i = 0 ; i < MAX_HEIGHT ; i++) {
         for(j = 0 ; j < MAX_WIDTH ; j++) {
-            if(stream_response.read() > 100) {
+            DOUBLE_DOUBLE_PIXEL response = stream_response.read();
+            if(response > 6000000) {
                 ret_pixel.data = 1;
             } else {
                 ret_pixel.data = 0;
