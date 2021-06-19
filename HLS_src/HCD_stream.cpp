@@ -60,15 +60,21 @@ P Gaussian_filter_1(W* window)
     return pixel;
 }
 
-void process_input(stream_ti& pstrmInput, STREAM_GRAY& stream_gray)
+void process_input(stream_ti& pstrmInput, STREAM_GRAY& stream_gray, int32_t row, int32_t col)
 {
-    AXI_PIXEL input = pstrmInput.read();
+    int32_t i;
+    int32_t j;
+    AXI_PIXEL input ;
     GRAY_PIXEL input_gray_pix;
-    input_gray_pix = (input.data.range(7,0)
-            + input.data.range(15,8)
-            + input.data.range(23,16))/3;
-
-    stream_gray.write(input_gray_pix);
+    for (i = 0; i < MAX_HEIGHT; ++i) {
+        for (j = 0; j < MAX_WIDTH; ++j) {
+            input = pstrmInput.read();
+            input_gray_pix = (input.data.range(7,0)
+                    + input.data.range(15,8)
+                    + input.data.range(23,16))/3;
+            stream_gray.write(input_gray_pix);
+        }
+    }
 }
 
 template<typename T>
@@ -173,6 +179,7 @@ void compute_det_trace(STREAM_DOUBLE& stream_Sxx, STREAM_DOUBLE& stream_Syy, STR
     int32_t j;
     DOUBLE_PIXEL Sxx, Sxy, Syy;
     DOUBLE_DOUBLE_PIXEL det;
+    DOUBLE_DOUBLE_PIXEL tmp;
     DOUBLE_DOUBLE_PIXEL trace;
 
     for (i = 0; i < MAX_HEIGHT; ++i) {
@@ -181,15 +188,14 @@ void compute_det_trace(STREAM_DOUBLE& stream_Sxx, STREAM_DOUBLE& stream_Syy, STR
             Sxy = stream_Sxy.read();
             Syy = stream_Syy.read();
 
+            #pragma HLS RESOURCE variable=tmp core=Mul
+            #pragma HLS RESOURCE variable=trace core=Mul
             trace = Sxx * Syy;
-            stream_trace.write(trace);
+            tmp =  Sxy * Sxy;
+            det = trace - tmp;
 
-            det = trace - Sxy * Sxy;
+            stream_trace.write(trace);
             stream_det.write(det);
-#ifndef __SYNTHESIS__
-    // std::cout << i << ' ' << j << ' ' << Ixx << ' ' << Ixy << ' ' << Iyy \
-    //             << ' ' << trace_buf-> getval(i, j) << ' ' << det_buf-> getval(i, j) << std::endl;
-#endif
         }
     }
 }
@@ -199,15 +205,13 @@ void compute_response(STREAM_DOUBLE_DOUBLE& stream_det, STREAM_DOUBLE_DOUBLE& st
 {
     int32_t i;
     int32_t j;
+    ap_fixed<44, 34> det, trace, response;
     for (i = 0; i < MAX_HEIGHT; ++i) {
         for (j = 0; j < MAX_WIDTH; ++j) {
-            // double response = double(stream_det.read()) / (double(stream_trace.read()) + 1e-12);
-            // stream_response.write(round(response));
-            ap_fixed<44, 34> det = stream_det.read();
-            ap_fixed<44, 34> trace = ap_fixed<44, 34>(stream_trace.read());
-            ap_fixed<44, 34> response = det - ap_fixed<12, 2>(0.05) * trace;
+            det = stream_det.read();
+            trace = ap_fixed<44, 34>(stream_trace.read());
+            response = det - ap_fixed<12, 2>(0.05) * trace;
             stream_response.write(DOUBLE_DOUBLE_PIXEL(response));
-            // cout << i << ' ' << j << ' ' << DOUBLE_DOUBLE_PIXEL(response) << endl;
         }
     }
 }
@@ -238,8 +242,6 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col
 #pragma HLS INTERFACE s_axilite port=col
 #pragma HLS INTERFACE s_axilite port=return
 
-#pragma HLS DATAFLOW
-
     int32_t i;
     int32_t j;
 
@@ -259,63 +261,27 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col
 
     STREAM_DOUBLE_DOUBLE stream_response;
 
-    Proc_input_1:
-    for (i = 0; i < MAX_HEIGHT; ++i) {
-        Proc_input_2:
-        for (j = 0; j < MAX_WIDTH; ++j) {
-             // Step 0: Convert to gray scale
-            process_input(pstrmInput, stream_gray);
-        }
-    }
-
-#ifndef __SYNTHESIS__
-	std::cout << "step 0 input" << std::endl;
-#endif
+#pragma HLS DATAFLOW
+    process_input(pstrmInput, stream_gray, row, col);
 
     // Step 1: Smooth the image by Gaussian kernel
     blur_img<GRAY_PIXEL>(stream_gray, stream_blur, row, col);
-
-#ifndef __SYNTHESIS__
-	std::cout << "step 1 smooth image" << std::endl;
-#endif
 
     // Step 2: Calculate Ix, Iy (1st derivative of image along x and y axis)
     // Step 3: Compute Ixx, Ixy, Iyy (Ixx = Ix*Ix, ...)
     compute_dif(stream_blur, stream_Ixx, stream_Iyy,
             stream_Ixy, row, col);
 
-#ifndef __SYNTHESIS__
-	std::cout << "step 2, 3 compute diff" << std::endl;
-#endif
-
     // Step 4: Compute Sxx, Sxy, Syy (weighted summation of Ixx, Ixy, Iyy in neighbor pixels)
     blur_diff(stream_Ixx, stream_Iyy, stream_Ixy,
         stream_Sxx, stream_Syy, stream_Sxy, row, col);
 
-#ifndef __SYNTHESIS__
-	std::cout << "step 4 compute sum" << std::endl;
-#endif
-
-    // Todo:
     // Step 5: Compute the det and trace of matrix M (M = [[Sxx, Sxy], [Sxy, Syy]])
     compute_det_trace(stream_Sxx, stream_Syy, stream_Sxy, stream_det, stream_trace, row, col);
-
-#ifndef __SYNTHESIS__
-	std::cout << "step 5 compute det trace" << std::endl;
-#endif
 
     // Step 6: Compute the response of the detector by det/(trace+1e-12)
     compute_response(stream_det, stream_trace, stream_response, row, col);
 
-#ifndef __SYNTHESIS__
-	std::cout << "step 6 compute response" << std::endl;
-#endif
-
     // Step 7: Post processing
     output_maxima(stream_response, pstrmOutput, row, col);
-
-#ifndef __SYNTHESIS__
-	std::cout << "step 7 output" << std::endl;
-#endif
-
 }
