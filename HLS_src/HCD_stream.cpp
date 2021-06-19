@@ -93,9 +93,9 @@ void blur_img(hls::stream<T>& stream_gray, hls::stream<T>& stream_blur, int32_t 
             window.shift_right();
 
             if (j < MAX_WIDTH) {
-	            window.insert(buf.getval(2,j),0,2);
-	            window.insert(buf.getval(1,j),1,2);
-	            window.insert(input,2,2);
+                window.insert(buf.getval(2,j),0,2);
+                window.insert(buf.getval(1,j),1,2);
+                window.insert(input,2,2);
             }
 
             if (i == 0 || j == 0)
@@ -117,7 +117,6 @@ void blur_img(hls::stream<T>& stream_gray, hls::stream<T>& stream_blur, int32_t 
     }
 }
 
-
 void compute_dif(STREAM_GRAY& stream_blur, STREAM_DOUBLE& stream_Ixx,
         STREAM_DOUBLE& stream_Iyy, STREAM_DOUBLE& stream_Ixy, int32_t row, int32_t col)
 {
@@ -126,29 +125,33 @@ void compute_dif(STREAM_GRAY& stream_blur, STREAM_DOUBLE& stream_Ixx,
     DIF_PIXEL       Ix, Iy, zero = 0;
     DOUBLE_PIXEL    Ixx, Iyy, Ixy;
     GRAY_BUFFER_3   blur_buf;
+    GRAY_PIXEL input;
 
-    for (j = 0 ; j < MAX_WIDTH ; j++) {
-        blur_buf.insert_at(stream_blur.read(), 2, j);
-    }
+    for (i = 0 ; i < MAX_HEIGHT+1; i++) {
+        for (j = 0; j < MAX_WIDTH+1; j++) {
+            if (j < MAX_WIDTH)
+                blur_buf.shift_up(j);
 
-    for (i = 0; i < MAX_HEIGHT; ++i) {
-        blur_buf.shift_down();
-        for (j = 0 ; j < MAX_WIDTH ; j++) {
-            blur_buf.insert_at((i == MAX_HEIGHT-1) ? GRAY_PIXEL(0) : stream_blur.read(), 2, j);
-        }
+            if (i < MAX_HEIGHT & j < MAX_WIDTH) {
+                input = stream_blur.read();
+                blur_buf.insert_bottom(input, j);
+            }
 
-        for (j = 0; j < MAX_WIDTH; ++j)
-        {
-            Ix = (j > 0 && j < MAX_WIDTH-1) ? blur_buf.getval(1, j-1) - blur_buf.getval(1, j+1) : zero;
-            Iy = (i > 0 && i < MAX_HEIGHT-1) ? blur_buf.getval(0, j) - blur_buf.getval(2, j) : zero;
+            if (j == 0 || i == 0)
+                continue;
 
-            Ixx = Ix * Ix;
-            Iyy = Iy * Iy;
-            Ixy = Ix * Iy;
+            else {
+                Ix = (j == 1 | j == MAX_WIDTH) ? zero : blur_buf.getval(1, j-2) - blur_buf.getval(1, j);
+                Iy = (i == 1 | i == MAX_HEIGHT) ? zero : blur_buf.getval(2, j-1) - blur_buf.getval(0, j-1);
 
-            stream_Ixx.write(Ixx);
-            stream_Iyy.write(Iyy);
-            stream_Ixy.write(Ixy);
+                Ixx = Ix * Ix;
+                Iyy = Iy * Iy;
+                Ixy = Ix * Iy;
+
+                stream_Ixx.write(Ixx);
+                stream_Iyy.write(Iyy);
+                stream_Ixy.write(Ixy);
+            }
         }
     }
 }
