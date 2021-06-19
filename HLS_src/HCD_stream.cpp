@@ -234,6 +234,7 @@ void HCD(stream_ti& pstrmInput, stream_to& pstrmOutput, reg32_t row, reg32_t col
 #pragma HLS INTERFACE axis register both port=pstrmInput
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
+#pragma HLS INTERFACE s_axilite port=return
 
 #pragma HLS DATAFLOW
 
