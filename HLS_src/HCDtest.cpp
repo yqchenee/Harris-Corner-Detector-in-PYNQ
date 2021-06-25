@@ -13,8 +13,8 @@ int main () {
     int x,y;
     int tmp;
     AXI_PIXEL pixel;
-    reg32_t width, height;
-    reg32_t corner_count = 0, out_corner;
+    unsigned int width, height;
+    unsigned int corner_count = 0, out_corner;
 
     stream_ti strmInput;
     stream_to strmOutput;
@@ -58,7 +58,7 @@ int main () {
     //corner_count = corner_count - 1;
 
     // Hardware Function
-    HCD(strmInput, strmOutput, height, width);
+    HCD(&strmInput, &strmOutput, height, width);
     for(int i = 0; i < width; ++i) {
     	for(int j = 0; j < height; ++j) {
     		tmp = strmOutput.read().data;
