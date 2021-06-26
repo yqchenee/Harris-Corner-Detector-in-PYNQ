@@ -214,10 +214,12 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
     BUFFER_5    response_buf;
     int32_t     i, j;
     int32_t     si, sj;
-    int32_t     d_bound, r_bound;
+    int32_t     d_bound, l_bound, r_bound;
 
+    #pragma HLS pipeline II=2
     for (i = 0 ; i < row+2; i++) {
         for (j = 0; j < col+2; j++) {
+            #pragma HLS unroll
             if (j < row)
                 response_buf.shift_up(j);
 
@@ -234,10 +236,11 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
             if (center_pixel != 0) {
                 input.data =1;
                 d_bound = (i-4 < 0) ? i : 4;
-                r_bound = (j-4 < 0) ? j : 4;
+                l_bound = (j-4 < 0) ? 0 : j-4;
+                r_bound = (j >= col) ? col-1 : j;
                 for(si = 0 ; si <= d_bound; si++) {
-                    for(sj = 0; sj <= r_bound; sj++) {
-                        if(response_buf.getval(si, j - sj) > center_pixel) {
+                    for(sj = l_bound; sj <= r_bound; sj++) {
+                        if(response_buf.getval(si, sj) > center_pixel) {
                             input.data = 0;
                             break;
                         }
