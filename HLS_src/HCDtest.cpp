@@ -16,8 +16,8 @@ int main () {
     unsigned int width, height;
     unsigned int corner_count = 0, out_corner;
 
-    stream_ti strmInput;
-    stream_to strmOutput;
+    stream_t strmInput;
+    stream_t strmOutput;
 
     //read file
     fstream fin1;

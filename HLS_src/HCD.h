@@ -8,55 +8,24 @@
 #define MAX_WIDTH 256
 #define MAX_HEIGHT 256
 
-
-/*// I/O Image Settings
-#define INPUT_IMAGE_BASE "test_1080p"
-#define OUTPUT_IMAGE_BASE "result_1080p"*/
-
-/**
-typedef ap_rgb<8,8,8> RGB;
-typedef ap_uint<8> GRAY_PIXEL;
-typedef ap_int<9> DIF_PIXEL;        // Ix, Iy
-typedef ap_int<17> DOUBLE_PIXEL;    // Ixx, Ixy, Iyy
-typedef ap_int<34> DOUBLE_DOUBLE_PIXEL;    // det, trace
-**/
+typedef ap_int<32> PIXEL;
 
 // data[0:7]:G, data[8:15]:B, data[16:23]:R
 typedef ap_axiu<32,1,1,1> AXI_PIXEL;
-typedef ap_axiu<32,1,1,1> BOOL_PIXEL;
 typedef ap_uint<32> reg32_t;
 typedef signed int int32_t;
 typedef unsigned int uint32_t;
 
 // top function input, output
-typedef hls::stream<AXI_PIXEL> stream_ti;
-typedef hls::stream<BOOL_PIXEL> stream_to;
-
-/**
-//
-typedef hls::stream<GRAY_PIXEL> STREAM_GRAY;
-typedef hls::stream<DOUBLE_PIXEL> STREAM_DOUBLE;
-typedef hls::stream<DOUBLE_DOUBLE_PIXEL> STREAM_DOUBLE_DOUBLE;
-
-typedef ap_window<GRAY_PIXEL,3,3> WINDOW;
-typedef ap_window<DOUBLE_PIXEL,3,3> DOUBLE_WINDOW;
-
-typedef ap_linebuffer<GRAY_PIXEL, 3, MAX_WIDTH> GRAY_BUFFER_3;
-
-typedef ap_linebuffer<GRAY_PIXEL, MAX_HEIGHT, MAX_WIDTH> GRAY_BUFFER;
-typedef ap_linebuffer<DIF_PIXEL, MAX_HEIGHT, MAX_WIDTH> DIF_BUFFER;         // Ix, Iy
-typedef ap_linebuffer<DOUBLE_PIXEL, MAX_HEIGHT, MAX_WIDTH> DOUBLE_BUFFER;   // Ixx, Ixy, Iyy
-typedef ap_linebuffer<DOUBLE_PIXEL, 2*MAX_HEIGHT, 2*MAX_WIDTH> TWICE_BUFFER;  // matrix
-**/
+typedef hls::stream<AXI_PIXEL> stream_t;
+typedef ap_window<PIXEL,3,3> WINDOW;
+typedef ap_linebuffer<PIXEL, 3, MAX_WIDTH> BUFFER_3;
 
 void HCD(
-    stream_ti* pstrmInput,
-    stream_to* pstrmOutput,
+    stream_t* pstrmInput,
+    stream_t* pstrmOutput,
     reg32_t row,
     reg32_t col
 );
-
-// void compute_det_trace(TWICE_BUFFER* matrix, ALL_BUFFER* det_buf,
-//         ALL_BUFFER* trace_buf, int32_t row, int32_t col);
 
 #endif
