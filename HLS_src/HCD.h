@@ -20,6 +20,7 @@ typedef unsigned int uint32_t;
 typedef hls::stream<AXI_PIXEL> stream_t;
 typedef ap_window<PIXEL,3,3> WINDOW;
 typedef ap_linebuffer<PIXEL, 3, MAX_WIDTH> BUFFER_3;
+typedef ap_linebuffer<PIXEL, 5, MAX_WIDTH> BUFFER_5;
 
 void HCD(
     stream_t* pstrmInput,

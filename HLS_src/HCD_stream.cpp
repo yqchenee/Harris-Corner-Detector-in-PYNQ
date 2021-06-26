@@ -126,11 +126,11 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
             else {
                 if (j == 1 | j == col)
                     Ix = zero;
-                else 
+                else
                     Ix = blur_buf.getval(1, j-2) - blur_buf.getval(1, j);
                 if (i == 1 | i == row)
                     Iy = zero;
-                else 
+                else
                     Iy = blur_buf.getval(2, j-1) - blur_buf.getval(0, j-1);
 
                 Ixx = Ix * Ix;
@@ -185,7 +185,7 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
             trace = Sxx * Syy;
             tmp =  Sxy * Sxy;
             det = trace - tmp;
-    
+
             // fix me
             input[0].data = trace;
             stream_trace->write(input[0]);
@@ -217,12 +217,43 @@ void compute_response(stream_t* stream_det, stream_t* stream_trace,
 
             // fix me
             if (response > 6000000)
-                input[0].data = 1;
-            else 
+                input[0].data = response;
+            else
                 input[0].data = 0;
             pstrmOutput->write(input[0]);
         }
     }
+}
+
+void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t row, int32_t col)
+{
+    AXI_PIXEL   output;
+    PIXEL       tmp, center_pixel;
+    BUFFER_5    response_buf;
+    int32_t     i, j;
+    int32_t     si, sj;
+
+    for (i = 0 ; i < row; i++) {
+        for (j = 0; j < col; j++) {
+            tmp = stream_response-> read().data;
+            response_buf.shift_up(j);
+            response_buf.insert_bottom(tmp, j);
+            if (i < 4 || j < 4) continue;
+            else {
+                center_pixel = response_buf.getval(2, j - 2);
+                output.data = (center_pixel == 0)? 0 : 1;
+                for(si = 0 ; si <= 4 ; si++) {
+                    for(sj = j-4 ; sj <= j ; sj++) {
+                        if(response_buf.getval(si, sj) > center_pixel) {
+                            output.data = 0;
+                        }
+                    }
+                }
+                pstrmOutput-> write(output);
+            }
+        }
+    }
+
 }
 
 void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, reg32_t row, reg32_t col)
@@ -246,6 +277,7 @@ void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, reg32_t row, reg32_t col)
     stream_t stream_Syy;
     stream_t stream_det;
     stream_t stream_trace;
+    stream_t stream_response;
 
 #pragma HLS DATAFLOW
     process_input(pstrmInput, &stream_gray, row, col);
@@ -253,7 +285,7 @@ void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, reg32_t row, reg32_t col)
     // Step 1: Smooth the image by Gaussian kernel
     blur_img(&stream_gray, &stream_blur, row, col);
 
-    // Step 2: Calculate Ix, Iy (1st derivative of image along x and y axis) 
+    // Step 2: Calculate Ix, Iy (1st derivative of image along x and y axis)
     // Step 3: Compute Ixx, Ixy, Iyy (Ixx = Ix*Ix, ...)
     compute_dif(&stream_blur, &stream_Ixx, &stream_Iyy,
             &stream_Ixy, row, col);
@@ -267,7 +299,9 @@ void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, reg32_t row, reg32_t col)
 
     // Step 6: Compute the response of the detector by det/(trace+1e-12)
     // Step 7: Post processing
-    compute_response(&stream_det, &stream_trace, pstrmOutput, row, col);
+    compute_response(&stream_det, &stream_trace, &stream_response, row, col);
+
+    find_local_maxima(&stream_response, pstrmOutput, row, col);
 
     return;
 }

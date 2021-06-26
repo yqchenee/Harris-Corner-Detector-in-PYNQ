@@ -56,12 +56,14 @@ int main () {
     // Hardware Function
     HCD(&strmInput, &strmOutput, height, width);
 
-    for(int i = 0; i < width; ++i) {
-    	for(int j = 0; j < height; ++j) {
+    int match = 0;
+    for(int i = 2; i < width-2; ++i) {
+    	for(int j = 2; j < height-2; ++j) {
     		tmp = strmOutput.read().data;
     		if(gold_output[i][j] != tmp) {
     			cout << "(" << i << ',' << j << ") Your output: " << tmp << ", Golden: " << gold_output[i][j] << endl;
     		}
+            if(gold_output[i][j] == tmp) match += 1;
     	}
     }
 
