@@ -216,27 +216,30 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
     int32_t     si, sj;
     int32_t     d_bound, r_bound;
 
-    for (i = 0 ; i < row; i++) {
-        for (j = 0; j < col; j++) {
-            input = stream_response->read();
+    for (i = 0 ; i < row+2; i++) {
+        for (j = 0; j < col+2; j++) {
+            if (j < row)
+                response_buf.shift_up(j);
 
-            response_buf.shift_up(j);
-            response_buf.insert_bottom(input.data, j);
+            if (i < row & j < row) {
+                input = stream_response->read();
+                response_buf.insert_bottom(input.data, j);
+            }
 
-            if (i < 2 || j < 2 || i > row-3 || j > col-3)
-                input.data = 0;
-            else {
-                center_pixel = response_buf.getval(2, j - 2);
-                input.data = center_pixel;
-                if (center_pixel != 0) {
-                    d_bound = (i-4 < 0) ? i : 4;
-                    r_bound = (j-4 < 0) ? j : 4;
-                    for(si = 0 ; si <= d_bound; si++) {
-                        for(sj = 0; sj <= r_bound; sj++) {
-                            if(response_buf.getval(si, j - sj) > center_pixel) {
-                                input.data = 0;
-                                break;
-                            }
+            if (i < 2 || j < 2)
+                continue;
+
+            center_pixel = response_buf.getval(2, j - 2);
+            input.data = center_pixel;
+            if (center_pixel != 0) {
+                input.data =1;
+                d_bound = (i-4 < 0) ? i : 4;
+                r_bound = (j-4 < 0) ? j : 4;
+                for(si = 0 ; si <= d_bound; si++) {
+                    for(sj = 0; sj <= r_bound; sj++) {
+                        if(response_buf.getval(si, j - sj) > center_pixel) {
+                            input.data = 0;
+                            break;
                         }
                     }
                 }
@@ -244,7 +247,6 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
             pstrmOutput-> write(input);
         }
     }
-
 }
 
 void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, reg32_t row, reg32_t col)

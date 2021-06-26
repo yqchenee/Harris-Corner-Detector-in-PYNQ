@@ -56,16 +56,17 @@ int main () {
     // Hardware Function
     HCD(&strmInput, &strmOutput, height, width);
 
-    int match = 0;
+    int unmatch = 0;
     for(int i = 0; i < width; ++i) {
     	for(int j = 0; j < height; ++j) {
     		tmp = strmOutput.read().data;
     		if(gold_output[i][j] != tmp) {
     			cout << "(" << i << ',' << j << ") Your output: " << tmp << ", Golden: " << gold_output[i][j] << endl;
+                unmatch++;
     		}
-            if(gold_output[i][j] == tmp) match += 1;
     	}
     }
+    cout << "total unmatch number :" << unmatch << endl;
 
     return 0;
 }
