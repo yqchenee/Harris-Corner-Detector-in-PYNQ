@@ -58,8 +58,10 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
     BUFFER_3  buf;
 
 
+    #pragma HLS pipeline II=2
     for (i = 0 ; i < row+1; i++) {
         for (j = 0; j < col+1; j++) {
+            #pragma HLS unroll
             if (j < row)
                 buf.shift_up(j);
 
@@ -109,8 +111,10 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
     BUFFER_3   blur_buf;
     AXI_PIXEL input;
 
+    #pragma HLS pipeline II=2
     for (i = 0 ; i < row+1; i++) {
         for (j = 0; j < col+1; j++) {
+            #pragma HLS unroll
             if (j < col)
                 blur_buf.shift_up(j);
 
@@ -171,8 +175,10 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
 
     ap_fixed<44, 34> _det, _trace, response;
 
+    #pragma HLS pipeline II=2
     for (i = 0; i < row; ++i) {
         for (j = 0; j < col; ++j) {
+            #pragma HLS unroll
             input[0] = stream_Sxx->read();
             input[1] = stream_Sxy->read();
             input[2] = stream_Syy->read();
