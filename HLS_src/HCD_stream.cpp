@@ -217,7 +217,7 @@ void compute_response(stream_t* stream_det, stream_t* stream_trace,
 
             // fix me
             if (response > 6000000)
-                input[0].data = response;
+                input[0].data = PIXEL(response);
             else
                 input[0].data = 0;
             pstrmOutput->write(input[0]);
