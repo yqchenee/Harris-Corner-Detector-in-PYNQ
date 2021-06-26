@@ -34,8 +34,6 @@ int main () {
 
     fin1 >> width;
     fin1 >> height;
-    width = MAX_WIDTH;
-    height = MAX_HEIGHT;
     for(int i = 0; i < width; ++i) {
         for(int j = 0; j < height; ++j) {
             gold_output[i][j] = 0;
@@ -54,11 +52,10 @@ int main () {
         fin2 >> y;
         gold_output[x][y] = 1;
     }
-    //for empty last line in the file
-    //corner_count = corner_count - 1;
 
     // Hardware Function
     HCD(&strmInput, &strmOutput, height, width);
+
     for(int i = 0; i < width; ++i) {
     	for(int j = 0; j < height; ++j) {
     		tmp = strmOutput.read().data;
@@ -67,24 +64,6 @@ int main () {
     		}
     	}
     }
-
-    //check answer
-    /*if(out_corner != corner_count) {
-        cout << "FAILED! wrong corner count" << endl;
-        cout << "Golden: " << corner_count << endl;
-        cout << "Your output: " << out_corner << endl;
-    }
-
-    for(int i = 0 ; i < corner_count ; i++) {
-        auto tmp = strmOutput.read().data;
-        if(gold_output[i].data.range(9,0) != tmp.range(9,0)
-          || gold_output[i].data.range(19,10) != tmp.range(19,10)) {
-            cout << "FAILED! wrong corner coordinate!" << endl;
-            cout << "In corner " << i << endl;
-            cout << "Golden: (" << gold_output[i].data.range(9,0) << "," << gold_output[i].data.range(19,10) << ")" << endl;
-            cout << "Your output: (" << tmp.range(9,0) << "," << tmp.range(19,10) << ")" << endl;
-        }
-    }*/
 
     return 0;
 }

@@ -5,8 +5,8 @@
 #include <ap_fixed.h>
 #include "ap_video.h"
 
-#define MAX_WIDTH 256
-#define MAX_HEIGHT 256
+#define MAX_WIDTH 1920
+#define MAX_HEIGHT 1080
 
 typedef ap_int<32> PIXEL;
 

@@ -34,8 +34,8 @@ void process_input(stream_t* pstrmInput, stream_t* stream_gray, int32_t row, int
     int32_t j;
     AXI_PIXEL input ;
     PIXEL input_gray_pix;
-    for (i = 0; i < MAX_HEIGHT; ++i) {
-        for (j = 0; j < MAX_WIDTH; ++j) {
+    for (i = 0; i < row; ++i) {
+        for (j = 0; j < col; ++j) {
             input = pstrmInput->read();
             input_gray_pix = (input.data.range(7,0)
                     + input.data.range(15,8)
@@ -58,12 +58,12 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
     BUFFER_3  buf;
 
 
-    for (i = 0 ; i < MAX_HEIGHT+1; i++) {
-        for (j = 0; j < MAX_WIDTH+1; j++) {
-            if (j < MAX_WIDTH)
+    for (i = 0 ; i < row+1; i++) {
+        for (j = 0; j < col+1; j++) {
+            if (j < row)
                 buf.shift_up(j);
 
-            if (i < MAX_HEIGHT & j < MAX_WIDTH) {
+            if (i < row& j < col) {
                 input = stream_gray->read();
                 tmp = input.data;
                 buf.insert_bottom(tmp, j);
@@ -71,7 +71,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
 
             window.shift_right();
 
-            if (j < MAX_WIDTH) {
+            if (j < col) {
                 window.insert(buf.getval(2,j),0,2);
                 window.insert(buf.getval(1,j),1,2);
                 window.insert(tmp,2,2);
@@ -82,12 +82,12 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
 
             if(j == 1)
                 window.rreflect();
-            else if (j == MAX_WIDTH)
+            else if (j == col)
                 window.lreflect();
 
             if (i == 1)
                 window.dreflect();
-            else if (i == MAX_HEIGHT)
+            else if (i == row)
                 window.ureflect();
 
             blur = Gaussian_filter_1<PIXEL, WINDOW >(&window);
@@ -109,12 +109,12 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
     BUFFER_3   blur_buf;
     AXI_PIXEL input;
 
-    for (i = 0 ; i < MAX_HEIGHT+1; i++) {
-        for (j = 0; j < MAX_WIDTH+1; j++) {
-            if (j < MAX_WIDTH)
+    for (i = 0 ; i < row+1; i++) {
+        for (j = 0; j < col+1; j++) {
+            if (j < col)
                 blur_buf.shift_up(j);
 
-            if (i < MAX_HEIGHT & j < MAX_WIDTH) {
+            if (i < row & j < col) {
                 input = stream_blur->read();
                 tmp = input.data;
                 blur_buf.insert_bottom(tmp, j);
@@ -124,11 +124,11 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
                 continue;
 
             else {
-                if (j == 1 | j == MAX_WIDTH)
+                if (j == 1 | j == col)
                     Ix = zero;
                 else 
                     Ix = blur_buf.getval(1, j-2) - blur_buf.getval(1, j);
-                if (i == 1 | i == MAX_HEIGHT)
+                if (i == 1 | i == row)
                     Iy = zero;
                 else 
                     Iy = blur_buf.getval(2, j-1) - blur_buf.getval(0, j-1);
@@ -170,8 +170,8 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
     PIXEL tmp;
     PIXEL trace;
 
-    for (i = 0; i < MAX_HEIGHT; ++i) {
-        for (j = 0; j < MAX_WIDTH; ++j) {
+    for (i = 0; i < row; ++i) {
+        for (j = 0; j < col; ++j) {
             input[0] = stream_Sxx->read();
             input[1] = stream_Sxy->read();
             input[2] = stream_Syy->read();
@@ -204,8 +204,8 @@ void compute_response(stream_t* stream_det, stream_t* stream_trace,
     int32_t j;
     AXI_PIXEL input[2];
     ap_fixed<44, 34> det, trace, response;
-    for (i = 0; i < MAX_HEIGHT; ++i) {
-        for (j = 0; j < MAX_WIDTH; ++j) {
+    for (i = 0; i < row; ++i) {
+        for (j = 0; j < col; ++j) {
 
             input[0] = stream_det->read();
             input[1] = stream_trace->read();
