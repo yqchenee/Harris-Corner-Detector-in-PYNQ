@@ -159,8 +159,7 @@ void blur_diff(stream_t* stream_Ixx, stream_t* stream_Iyy, stream_t* stream_Ixy,
 }
 
 void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* stream_Sxy,
-        stream_t* stream_det, stream_t* stream_trace,
-        int32_t row, int32_t col)
+        stream_t* stream_response, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
@@ -169,6 +168,8 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
     PIXEL det;
     PIXEL tmp;
     PIXEL trace;
+
+    ap_fixed<44, 34> _det, _trace, response;
 
     for (i = 0; i < row; ++i) {
         for (j = 0; j < col; ++j) {
@@ -186,41 +187,16 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
             tmp =  Sxy * Sxy;
             det = trace - tmp;
 
-            // fix me
-            input[0].data = trace;
-            stream_trace->write(input[0]);
+            _det = ap_fixed<44, 34>(det);
+            _trace = ap_fixed<44, 34>(trace);
+            response = _det - ap_fixed<12, 2>(0.05) * _trace;
 
-            // fix me
-            input[1].data = det;
-            stream_det->write(input[1]);
-        }
-    }
-}
-
-void compute_response(stream_t* stream_det, stream_t* stream_trace,
-    stream_t* pstrmOutput, int32_t row, int32_t col)
-{
-    int32_t i;
-    int32_t j;
-    AXI_PIXEL input[2];
-    ap_fixed<44, 34> det, trace, response;
-    for (i = 0; i < row; ++i) {
-        for (j = 0; j < col; ++j) {
-
-            input[0] = stream_det->read();
-            input[1] = stream_trace->read();
-
-            det = ap_fixed<44, 34>(input[0].data);
-            trace = ap_fixed<44, 34>(input[1].data);
-
-            response = det - ap_fixed<12, 2>(0.05) * trace;
-
-            // fix me
             if (response > 6000000)
                 input[0].data = PIXEL(response);
             else
                 input[0].data = 0;
-            pstrmOutput->write(input[0]);
+
+            stream_response->write(input[0]);
         }
     }
 }
@@ -284,8 +260,6 @@ void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, reg32_t row, reg32_t col)
     stream_t stream_Sxx;
     stream_t stream_Sxy;
     stream_t stream_Syy;
-    stream_t stream_det;
-    stream_t stream_trace;
     stream_t stream_response;
 
 #pragma HLS DATAFLOW
@@ -304,12 +278,10 @@ void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, reg32_t row, reg32_t col)
         &stream_Sxx, &stream_Syy, &stream_Sxy, row, col);
 
     // Step 5: Compute the det and trace of matrix M (M = [[Sxx, Sxy], [Sxy, Syy]])
-    compute_det_trace(&stream_Sxx, &stream_Syy, &stream_Sxy, &stream_det, &stream_trace, row, col);
-
     // Step 6: Compute the response of the detector by det/(trace+1e-12)
-    // Step 7: Post processing
-    compute_response(&stream_det, &stream_trace, &stream_response, row, col);
+    compute_det_trace(&stream_Sxx, &stream_Syy, &stream_Sxy, &stream_response, row, col);
 
+    // Step 7: Post processing
     find_local_maxima(&stream_response, pstrmOutput, row, col);
 
     return;
