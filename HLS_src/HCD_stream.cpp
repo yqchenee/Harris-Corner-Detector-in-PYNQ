@@ -186,8 +186,6 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
             Sxy = input[1].data;
             Syy = input[2].data;
 
-            #pragma HLS RESOURCE variable=tmp core=Mul
-            #pragma HLS RESOURCE variable=trace core=Mul
             trace = Sxx * Syy;
             tmp =  Sxy * Sxy;
             det = trace - tmp;
@@ -239,6 +237,7 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
                     for(si = 0 ; si < 5; si++) {
                         if(response_buf.getval(si, sj) > center_pixel) {
                             input.data = 0;
+                            break;
                         }
                     }
                 }
