@@ -35,7 +35,9 @@ void process_input(stream_t* pstrmInput, stream_t* stream_gray, int32_t row, int
     AXI_PIXEL input ;
     PIXEL input_gray_pix;
     for (i = 0; i < row; ++i) {
+    #pragma HLS loop_tripcount max=256
         for (j = 0; j < col; ++j) {
+    #pragma HLS loop_tripcount max=256
     #pragma HLS pipeline
             input = pstrmInput->read();
             input_gray_pix = (input.data.range(7,0)
@@ -61,7 +63,9 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
 
     #pragma HLS pipeline II=2
     for (i = 0 ; i < row+1; i++) {
+    #pragma HLS loop_tripcount max=257
         for (j = 0; j < col+1; j++) {
+    #pragma HLS loop_tripcount max=257
     #pragma HLS unroll
             if (j < col)
                 buf.shift_up(j);
@@ -114,7 +118,9 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
 
     #pragma HLS pipeline II=2
     for (i = 0 ; i < row+1; i++) {
+    #pragma HLS loop_tripcount max=257
         for (j = 0; j < col+1; j++) {
+    #pragma HLS loop_tripcount max=257
             if (j < col)
                 blur_buf.shift_up(j);
 
@@ -177,7 +183,9 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
 
     #pragma HLS pipeline II=2
     for (i = 0; i < row; ++i) {
+    #pragma HLS loop_tripcount max=256
         for (j = 0; j < col; ++j) {
+    #pragma HLS loop_tripcount max=256
             input[0] = stream_Sxx->read();
             input[1] = stream_Sxy->read();
             input[2] = stream_Syy->read();
@@ -214,7 +222,9 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
     int32_t     l_bound, r_bound;
 
     for (i = 0 ; i < row+2; i++) {
+    #pragma HLS loop_tripcount max=258
         for (j = 0; j < col+2; j++) {
+    #pragma HLS loop_tripcount max=258
             if (j < col)
                 response_buf.shift_up(j);
 
@@ -233,6 +243,7 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
                 l_bound = j - 4;
                 r_bound = j;
                 for(sj = l_bound; sj <= r_bound; sj++) {
+                #pragma HLS loop_tripcount max=5
                 #pragma HLS pipeline
                     for(si = 0 ; si < 5; si++) {
                         if(response_buf.getval(si, sj) > center_pixel) {
