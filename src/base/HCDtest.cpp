@@ -24,8 +24,8 @@ int main () {
     fstream fin2;
 
     // change path if needed !
-    fin1.open("../../../../HLS_src/1_in.txt", ios::in);
-    fin2.open("../../../../HLS_src/1_gold.txt", ios::in);
+    fin1.open("../../../../data/hls_test/1_in.txt", ios::in);
+    fin2.open("../../../../data/hls_test/1_gold.txt", ios::in);
 
     if (!fin1.is_open() || !fin2.is_open()) {
       cout << "fail reading file" << endl;
