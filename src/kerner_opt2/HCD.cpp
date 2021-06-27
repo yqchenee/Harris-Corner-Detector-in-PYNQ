@@ -7,7 +7,6 @@
 template<typename P, typename W>
 P Gaussian_filter_1(W* window)
 {
-#pragma AP inline
     char i,j;
     ap_fixed<27, 17> sum = 0;
     P pixel =0;
@@ -18,14 +17,19 @@ P Gaussian_filter_1(W* window)
         {0.123841, 0.20418, 0.123841},
         {0.0751136, 0.123841, 0.0751136}
     };
+    #pragma HLS array_partition variable=op complete
+    #pragma HLS expression_balance
 
-    for (i = 0; i < 3; i++) {
-        #pragma HLS pipeline
-        for (j = 0; j < 3; j++) {
-            #pragma HLS pipeline
-            sum += window->getval(i,j) * op[i][j];
-        }
-    }
+    sum = window->getval(0,0) * op[0][0] + 
+          window->getval(0,1) * op[0][1] + 
+          window->getval(0,2) * op[0][2] + 
+          window->getval(1,0) * op[1][0] + 
+          window->getval(1,0) * op[1][1] + 
+          window->getval(1,0) * op[1][2] + 
+          window->getval(2,0) * op[2][0] + 
+          window->getval(2,1) * op[2][1] + 
+          window->getval(2,2) * op[2][2] ; 
+
     pixel = P(sum);
     return pixel;
 }
@@ -63,12 +67,10 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
     BUFFER_3  buf;
 
 
-    #pragma HLS pipeline
     for (i = 0 ; i < row+1; i++) {
     #pragma HLS loop_tripcount max=257
         for (j = 0; j < col+1; j++) {
     #pragma HLS loop_tripcount max=257
-    #pragma HLS unroll factor=8
             if (j < col)
                 buf.shift_up(j);
 
@@ -118,12 +120,10 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
     BUFFER_3   blur_buf;
     AXI_PIXEL input;
 
-    #pragma HLS pipeline
     for (i = 0 ; i < row+1; i++) {
     #pragma HLS loop_tripcount max=257
         for (j = 0; j < col+1; j++) {
     #pragma HLS loop_tripcount max=257
-    #pragma HLS unroll factor=4
             if (j < col)
                 blur_buf.shift_up(j);
 
