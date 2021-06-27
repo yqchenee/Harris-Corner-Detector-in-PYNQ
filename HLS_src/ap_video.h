@@ -74,7 +74,7 @@ template <typename T, int LROW, int LCOL>
   ap_linebuffer(){
 #pragma AP ARRAY_PARTITION variable=M dim=1 complete
 //#pragma AP ARRAY_PARTITION variable=M dim=1 factor=2
-    #pragma AP data_pack variable=M
+    // #pragma AP data_pack variable=M
     //#pragma AP dependence variable=M intra false
     //#pragma AP dependence variable=M inter false
 };

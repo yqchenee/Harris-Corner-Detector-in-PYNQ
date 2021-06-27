@@ -36,6 +36,7 @@ void process_input(stream_t* pstrmInput, stream_t* stream_gray, int32_t row, int
     PIXEL input_gray_pix;
     for (i = 0; i < row; ++i) {
         for (j = 0; j < col; ++j) {
+    #pragma HLS pipeline
             input = pstrmInput->read();
             input_gray_pix = (input.data.range(7,0)
                     + input.data.range(15,8)
@@ -61,7 +62,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
     #pragma HLS pipeline II=2
     for (i = 0 ; i < row+1; i++) {
         for (j = 0; j < col+1; j++) {
-            #pragma HLS unroll
+    #pragma HLS unroll
             if (j < row)
                 buf.shift_up(j);
 
@@ -114,7 +115,6 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
     #pragma HLS pipeline II=2
     for (i = 0 ; i < row+1; i++) {
         for (j = 0; j < col+1; j++) {
-            #pragma HLS unroll
             if (j < col)
                 blur_buf.shift_up(j);
 
@@ -178,7 +178,6 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
     #pragma HLS pipeline II=2
     for (i = 0; i < row; ++i) {
         for (j = 0; j < col; ++j) {
-            #pragma HLS unroll
             input[0] = stream_Sxx->read();
             input[1] = stream_Sxy->read();
             input[2] = stream_Syy->read();
@@ -214,16 +213,14 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
     BUFFER_5    response_buf;
     int32_t     i, j;
     int32_t     si, sj;
-    int32_t     d_bound, l_bound, r_bound;
+    int32_t     l_bound, r_bound;
 
-    #pragma HLS pipeline II=2
     for (i = 0 ; i < row+2; i++) {
         for (j = 0; j < col+2; j++) {
-            #pragma HLS unroll
-            if (j < row)
+            if (j < col)
                 response_buf.shift_up(j);
 
-            if (i < row & j < row) {
+            if (i < row & j < col) {
                 input = stream_response->read();
                 response_buf.insert_bottom(input.data, j);
             }
@@ -232,17 +229,16 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
                 continue;
 
             center_pixel = response_buf.getval(2, j - 2);
-            input.data = center_pixel;
-            if (center_pixel != 0) {
+            input.data = 0;
+            if (center_pixel != 0 && i > 3 && j > 3 && i < col && j < col) {
                 input.data =1;
-                d_bound = (i-4 < 0) ? i : 4;
-                l_bound = (j-4 < 0) ? 0 : j-4;
-                r_bound = (j >= col) ? col-1 : j;
-                for(si = 0 ; si <= d_bound; si++) {
-                    for(sj = l_bound; sj <= r_bound; sj++) {
+                l_bound = j - 4;
+                r_bound = j;
+                for(sj = l_bound; sj <= r_bound; sj++) {
+                #pragma HLS pipeline
+                    for(si = 0 ; si < 5; si++) {
                         if(response_buf.getval(si, sj) > center_pixel) {
                             input.data = 0;
-                            break;
                         }
                     }
                 }
