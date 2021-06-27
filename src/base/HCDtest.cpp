@@ -57,16 +57,18 @@ int main () {
     HCD(&strmInput, &strmOutput, height, width);
 
     int unmatch = 0;
+    bool success = true;
     for(int i = 0; i < width; ++i) {
     	for(int j = 0; j < height; ++j) {
     		tmp = strmOutput.read().data;
     		if(gold_output[i][j] != tmp) {
     			cout << "(" << i << ',' << j << ") Your output: " << tmp << ", Golden: " << gold_output[i][j] << endl;
                 unmatch++;
+                success = false;
     		}
     	}
     }
     cout << "total unmatch number :" << unmatch << endl;
 
-    return 0;
+    return success ? 0 : 1;
 }
