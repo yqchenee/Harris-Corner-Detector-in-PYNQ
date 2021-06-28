@@ -17,7 +17,8 @@ In this project, we implement a **Harris Corner Detector** with low latency usin
 * **src/** : source code
     * **host/** : host code for pynq
     * **kernel_opt1/** : kernel code without HLS pragma
-    * **kernel_opt2/** : kernel code with inline, unrolling, pipeline, dataflow
+    * **kernel_opt2/** : kernel code with inline, unrolling
+    * **kernel_opt3/** : kernel code with inline, pipeline
 
 * **data/** : data for testing
     * **hls_test/** : test data for xilinx HLS tool.
