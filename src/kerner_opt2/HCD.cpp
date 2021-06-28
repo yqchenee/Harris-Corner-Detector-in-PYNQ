@@ -7,6 +7,7 @@
 template<typename P, typename W>
 P Gaussian_filter_1(W* window)
 {
+#pragma HLS inline
     char i,j;
     ap_fixed<27, 17> sum = 0;
     P pixel =0;
@@ -24,8 +25,8 @@ P Gaussian_filter_1(W* window)
           window->getval(0,1) * op[0][1] + 
           window->getval(0,2) * op[0][2] + 
           window->getval(1,0) * op[1][0] + 
-          window->getval(1,0) * op[1][1] + 
-          window->getval(1,0) * op[1][2] + 
+          window->getval(1,1) * op[1][1] + 
+          window->getval(1,2) * op[1][2] + 
           window->getval(2,0) * op[2][0] + 
           window->getval(2,1) * op[2][1] + 
           window->getval(2,2) * op[2][2] ; 
