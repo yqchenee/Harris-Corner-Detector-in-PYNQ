@@ -45,7 +45,7 @@ void process_input(stream_t* pstrmInput, stream_t* stream_gray, int32_t row, int
     #pragma HLS loop_tripcount max=256
         for (j = 0; j < col; ++j) {
     #pragma HLS loop_tripcount max=256
-    #pragma HLS pipeline
+    #pragma HLS unroll factor=3
             input = pstrmInput->read();
             input_gray_pix = (input.data.range(7,0)
                     + input.data.range(15,8)
@@ -66,7 +66,6 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
     AXI_PIXEL input;
     WINDOW  window;
     BUFFER_3  buf;
-
 
     for (i = 0 ; i < row+1; i++) {
     #pragma HLS loop_tripcount max=257
@@ -185,11 +184,9 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
 
     ap_fixed<44, 34> _det, _trace, response;
 
-    #pragma HLS pipeline
     for (i = 0; i < row; ++i) {
     #pragma HLS loop_tripcount max=256
         for (j = 0; j < col; ++j) {
-    #pragma HLS unroll factor=8
     #pragma HLS loop_tripcount max=256
             input[0] = stream_Sxx->read();
             input[1] = stream_Sxy->read();
@@ -247,10 +244,10 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
             input.data = 0;
             if (center_pixel != 0) {
                 input.data =1;
-                #pragma HLS pipeline
                 for(sj = 0; sj < 5; sj++) {
-                #pragma HLS pipeline
+                #pragma HLS unroll
                     for(si = 0 ; si < 5; si++) {
+                    #pragma HLS unroll
                         // handle bound at getval function
                         if(response_buf.getval(si, j-sj) > center_pixel) {
                             input.data = 0;
