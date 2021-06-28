@@ -45,4 +45,4 @@ In this project, we implement a **Harris Corner Detector** with low latency usin
     1. Upload **src/host** folder to pynq's jupyter, then put **data/host_test** folder to the same folder.
     2. Upload your bitstream and hardware file.
     3. Execute **HCDhost.ipynb** in jupyter notebook, following is the figure after correctly execute it.
-        ![image](https://github.com/yqchenee/ACA_21S_final/blob/master/docs/pynq_result.png)
+        ![image](https://github.com/yqchenee/ACA_21S_final/blob/master/docs/host_test_result.png)
