@@ -46,11 +46,13 @@ if __name__ == "__main__":
     timeKernelEnd = time()
     print("Kernel execution time: " + str(timeKernelEnd - timeKernelStart) + " s")
     
+    fig = plt.figure(figsize=(10, 7))
+    fig.add_subplot(1, 3, 1)
+    
     #print input
     image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     plt.imshow(image_rgb)
     plt.title('Input')
-    plt.show()
     
     #CPU
     cpu_start = time()
@@ -80,9 +82,10 @@ if __name__ == "__main__":
             img[res[0], res[1]-1] = [0, 0, 255]
         img[res[0], res[1]] = [0, 0, 255]
     image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    
+    fig.add_subplot(1, 3, 2)
     plt.imshow(image_rgb)
     plt.title('CPU Result')
-    plt.show()
     
     #print kernel result
     for i in range(img.shape[0]):
@@ -90,10 +93,11 @@ if __name__ == "__main__":
             if(outBuffer0[i*img.shape[1] + j] == 1):
                 img2[i, j] = [0, 0, 255]
     image_rgb = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
+    fig.add_subplot(1, 3, 3)
     plt.imshow(image_rgb)
     plt.title('Kernel Result')
+    
     plt.show()
       
-    
     print("============================")
     print("Exit process")
