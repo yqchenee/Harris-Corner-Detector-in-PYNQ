@@ -37,6 +37,10 @@ In this project, we implement a **Harris Corner Detector** with low latency usin
 
 ## Run Test
 * HLS Vivado
+    1. Import HCDtest.cpp to test bench
+    2. Put **data/hls_test** folder to the same directory of hls project root.
+    3. Run simulation.
+    
 * PYNQ host
     1. Upload **src/host** folder to pynq's jupyter, then put **data/host_test** folder to the same folder.
     2. Upload your bitstream and hardware file.
