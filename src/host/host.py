@@ -12,8 +12,7 @@ from matplotlib import pyplot as plt
 
 if __name__ == "__main__":
     threshold = 100.0
-    #change test image path
-    image_path = './testdata/2.png'
+    image_path = './host_test/3.png'
     max_width = 1920
     max_height = 1080
     print("Entry:", sys.argv[0])
@@ -27,8 +26,7 @@ if __name__ == "__main__":
     nbytes = img.shape[0] * img.shape[1] * 4
 
     #kernel 
-    #change bitstream path
-    ol = Overlay("./kernel_opt3/HCD.bit")
+    ol = Overlay("./HCD.bit")
     ipHCD = ol.HCD_0
     ipDMAIn = ol.axi_dma_0
     ipDMAOut = ipDMAIn
@@ -87,8 +85,8 @@ if __name__ == "__main__":
     plt.show()
     
     #print kernel result
-    for i in range(2, img.shape[0]):
-        for j in range(2, img.shape[1]):
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
             if(outBuffer0[i*img.shape[1] + j] == 1):
                 img2[i, j] = [0, 0, 255]
     image_rgb = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
