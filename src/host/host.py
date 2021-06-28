@@ -12,7 +12,8 @@ from matplotlib import pyplot as plt
 
 if __name__ == "__main__":
     threshold = 100.0
-    image_path = '../testdata/2.png'
+    #change test image path
+    image_path = './testdata/2.png'
     max_width = 1920
     max_height = 1080
     print("Entry:", sys.argv[0])
@@ -26,7 +27,8 @@ if __name__ == "__main__":
     nbytes = img.shape[0] * img.shape[1] * 4
 
     #kernel 
-    ol = Overlay("HCD.bit")
+    #change bitstream path
+    ol = Overlay("./kernel_opt3/HCD.bit")
     ipHCD = ol.HCD_0
     ipDMAIn = ol.axi_dma_0
     ipDMAOut = ipDMAIn
