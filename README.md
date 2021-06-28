@@ -5,6 +5,14 @@ In this project, we implement a **Harris Corner Detector** with low latency usin
 
 ## Major Optimization
 
+
+| design   | latency(ms) | BRAM_18K | DSP48E | FF | LUT|
+| -------- | -------- | -------- |  -------- | -------- | ----|
+| kernel_opt1 | 58   | 120 | 26 | 4433 | 11199 |
+| kernel_opt2 | 5.29 | 80  | 92 | 9299 | 16640 |
+| kernel_opt3 | 3.31 | 80  | 127| 16725 | 18057 |
+
+
 ## Folder structure
 * **src/** : source code
     * **host/** : host code for pynq
@@ -23,6 +31,9 @@ In this project, we implement a **Harris Corner Detector** with low latency usin
 
 ## Getting Started
 1. Clone this project, and import kernel code to Vivado HLS (version 2019.2), generate a IP called **HCD**.
-2. 
+2. Import **HCD** IP to Vivado (version 2019.2), then add two DMA (one for read and one for write), after run auto connection, the block diagram should like following figure. 
+    ![image](https://github.com/yqchenee/ACA_21S_final/blob/master/docs/block_diagram.png)
+3. Generate bitstream from Vivado GUI or tcl file in build folder, then test your bitstream in pynq.
+
 ## Run Test
 
