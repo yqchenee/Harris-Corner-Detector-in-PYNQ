@@ -1,7 +1,3 @@
-midterm report link:https://docs.google.com/document/d/1g4Snl0hTN3Jz93VdDQSKA9s5Hmh7P3_vjrUKr-yqeNw/edit?usp=sharing
-
-final report: https://docs.google.com/presentation/d/1u7tLKmdXmiCifG3KyYDpXHv1JPC1e1xm4NNQEObnwC0/edit#slide=id.p
-
 # Harris Corner Detector in PYNQ
 
 ## Introduction
@@ -20,6 +16,10 @@ In this project, we implement a **Harris Corner Detector** with low latency usin
     * **host_test/** : test data for pynq's jupyter notebook
 
 * **docs/** :  pdf of our present
+
+* **impl_result/** :  bit and hwh file and synthesis report for each kernel_optx
+
+* **build/** : include tcl file for vivado
 
 ## Getting Started
 1. Clone this project, and import kernel code to Vivado HLS (version 2019.2), generate a IP called **HCD**.
