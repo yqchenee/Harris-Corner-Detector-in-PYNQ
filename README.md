@@ -1,7 +1,9 @@
 # Harris Corner Detector in PYNQ
 
 ## Introduction
-In this project, we implement a **Harris Corner Detector** with low latency using Xilinx tool, and deploy our design to PYNQ.
+**Harris Corner Detector** is a technique to extract features of corners in the image.  <br>
+In this project, we implement a **Harris Corner Detector** using Xilinx Vivado HLS. The hardware design can be deployed to PYNQ-Z2 borad.
+Our implementation is low latency and low calculation error, and we explore some optimization methods for further acceleration of the process.
 
 ## Major Optimization
 * kerner_opt1 : origin design without HLS pragma
