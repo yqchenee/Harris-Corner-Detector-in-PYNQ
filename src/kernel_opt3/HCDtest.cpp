@@ -16,16 +16,16 @@ int main () {
     unsigned int width, height;
     unsigned int corner_count = 0, out_corner;
 
-    stream_t strmInput;
-    stream_t strmOutput;
+    stream_io strmInput;
+    stream_io strmOutput;
 
     //read file
     fstream fin1;
     fstream fin2;
 
     // change path if needed !
-    fin1.open("../../../hls_test/1_in.txt", ios::in);
-    fin2.open("../../../hls_test/1_gold.txt", ios::in);
+    fin1.open("../../../../data/hls_test/1_in.txt", ios::in);
+    fin2.open("../../../../data/hls_test/1_gold.txt", ios::in);
 
     if (!fin1.is_open() || !fin2.is_open()) {
       cout << "fail reading file" << endl;
