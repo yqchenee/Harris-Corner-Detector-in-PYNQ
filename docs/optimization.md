@@ -1,6 +1,6 @@
 # HCD Optimization
 In this file, we will dig into the details of how we implement and which optimization methods we use in our HCD kernel design.
-The details of how the kernel works can be seen in background.md.
+The details of how the kernel works can be seen in [background](./background.pdf).
 
 ## Code Example
 First, the implementation of HCD is seperated into top function and several sub-functions, you can have a clear look in figure 1.
