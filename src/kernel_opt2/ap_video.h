@@ -121,7 +121,6 @@ template <typename T, int LROW, int LCOL>
   for(i = 0; i < LROW-1; i++){
     for(j = 0; j < LCOL; j++){
       #pragma HLS unroll
-
           M[i][j] = M[i+1][j];
     }
   }
@@ -167,10 +166,6 @@ template <typename T, int LROW, int LCOL>
 {
 #pragma HLS inline
 
-  //
-  if(RowIndex >= LROW || ColIndex >= LCOL)
-      return T(0);
-
   T return_value;
   return_value = M[RowIndex][ColIndex];
   return return_value;
@@ -184,6 +179,7 @@ template <typename T, int LROW, int LCOL>
 
   ap_window(){
 #pragma HLS ARRAY_PARTITION variable=M dim=0 complete
+    //#pragma HLS data_pack variable=M
 };
   ~ap_window(){};
   void shift_right();

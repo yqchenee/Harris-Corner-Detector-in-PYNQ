@@ -7,7 +7,6 @@
 template<typename P, typename W>
 P Gaussian_filter_1(W* window)
 {
-#pragma HLS inline
     char i,j;
     ap_fixed<27, 17> sum = 0;
     P pixel =0;
@@ -18,41 +17,35 @@ P Gaussian_filter_1(W* window)
         {0.123841, 0.20418, 0.123841},
         {0.0751136, 0.123841, 0.0751136}
     };
-    #pragma HLS array_partition variable=op complete
-    #pragma HLS expression_balance
 
-    sum = window->getval(0,0) * op[0][0] + 
-          window->getval(0,1) * op[0][1] + 
-          window->getval(0,2) * op[0][2] + 
-          window->getval(1,0) * op[1][0] + 
-          window->getval(1,1) * op[1][1] + 
-          window->getval(1,2) * op[1][2] + 
-          window->getval(2,0) * op[2][0] + 
-          window->getval(2,1) * op[2][1] + 
-          window->getval(2,2) * op[2][2] ; 
-
+    for (i = 0; i < 3; i++) {
+        for (j = 0; j < 3; j++) {
+            #pragma HLS pipeline
+            sum += window->getval(i,j) * op[i][j];
+        }
+    }
     pixel = P(sum);
     return pixel;
 }
 
-void process_input(stream_t* pstrmInput, stream_t* stream_gray, int32_t row, int32_t col)
+void process_input(stream_io* pstrmInput, stream_t* stream_gray, int32_t row, int32_t col)
 {
     int32_t i;
     int32_t j;
-    AXI_PIXEL input ;
+    PIXEL input ;
     PIXEL input_gray_pix;
     for (i = 0; i < row; ++i) {
     #pragma HLS loop_tripcount max=256
         for (j = 0; j < col; ++j) {
     #pragma HLS loop_tripcount max=256
     #pragma HLS unroll factor=3
-            input = pstrmInput->read();
-            input_gray_pix = (input.data.range(7,0)
-                    + input.data.range(15,8)
-                    + input.data.range(23,16))/3;
+            input = pstrmInput->read().data;
+            input_gray_pix = (input.range(7,0)
+                    + input.range(15,8)
+                    + input.range(23,16))/3;
 
             // fix me
-            input.data = input_gray_pix;
+            input = input_gray_pix;
             stream_gray->write(input);
         }
     }
@@ -63,7 +56,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
     int32_t i;
     int32_t j;
     PIXEL   tmp, blur;
-    AXI_PIXEL input;
+    PIXEL input;
     WINDOW  window;
     BUFFER_3  buf;
 
@@ -76,7 +69,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
 
             if (i < row & j < col) {
                 input = stream_gray->read();
-                tmp = input.data;
+                tmp = input;
                 buf.insert_bottom(tmp, j);
             }
 
@@ -104,7 +97,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
             blur = Gaussian_filter_1<PIXEL, WINDOW >(&window);
 
             // fix me
-            input.data = blur;
+            input = blur;
             stream_blur->write(input);
         }
     }
@@ -118,7 +111,7 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
     PIXEL    Ix, Iy, zero = 0;
     PIXEL    tmp, Ixx, Iyy, Ixy;
     BUFFER_3   blur_buf;
-    AXI_PIXEL input;
+    PIXEL 	input;
 
     for (i = 0 ; i < row+1; i++) {
     #pragma HLS loop_tripcount max=257
@@ -129,7 +122,7 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
 
             if (i < row & j < col) {
                 input = stream_blur->read();
-                tmp = input.data;
+                tmp = input;
                 blur_buf.insert_bottom(tmp, j);
             }
 
@@ -151,11 +144,11 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
                 Ixy = Ix * Iy;
 
                 // fix me
-                input.data = Ixx;
+                input = Ixx;
                 stream_Ixx->write(input);
-                input.data = Iyy;
+                input = Iyy;
                 stream_Iyy->write(input);
-                input.data = Ixy;
+                input = Ixy;
                 stream_Ixy->write(input);
             }
         }
@@ -176,7 +169,7 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
 {
     int32_t i;
     int32_t j;
-    AXI_PIXEL input[3];
+    PIXEL input[3];
     PIXEL Sxx, Sxy, Syy;
     PIXEL det;
     PIXEL tmp;
@@ -192,9 +185,9 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
             input[1] = stream_Sxy->read();
             input[2] = stream_Syy->read();
 
-            Sxx = input[0].data;
-            Sxy = input[1].data;
-            Syy = input[2].data;
+            Sxx = input[0];
+            Sxy = input[1];
+            Syy = input[2];
 
             trace = Sxx * Syy;
             tmp =  Sxy * Sxy;
@@ -205,16 +198,16 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
             response = _det - ap_fixed<12, 2>(0.05) * _trace;
 
             if (response > 6000000)
-                input[0].data = PIXEL(response);
+                input[0] = PIXEL(response);
             else
-                input[0].data = 0;
+                input[0] = 0;
 
             stream_response->write(input[0]);
         }
     }
 }
 
-void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t row, int32_t col)
+void find_local_maxima(stream_t* stream_response, stream_io* pstrmOutput, int32_t row, int32_t col)
 {
     AXI_PIXEL   input;
     PIXEL       center_pixel;
@@ -231,25 +224,22 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
                 response_buf.shift_up(j);
 
             if (i < row & j < col) {
-                input = stream_response->read();
+                input.data = stream_response->read();
                 response_buf.insert_bottom(input.data, j);
             }
 
-            if (i < 2 || j < 2) {
-                response_buf.insert_at(0, 2, j);
+            if (i < 2 || j < 2)
                 continue;
-            }
 
             center_pixel = response_buf.getval(2, j - 2);
             input.data = 0;
-            if (center_pixel != 0) {
+            if (center_pixel != 0 && i > 3 && j > 3 && i < row && j < col) {
                 input.data =1;
-                for(sj = 0; sj < 5; sj++) {
                 #pragma HLS unroll
-                    for(si = 0 ; si < 5; si++) {
+                loop_sj: for(sj = 4; sj >= 0; sj--) {
                     #pragma HLS unroll
-                        // handle bound at getval function
-                        if(response_buf.getval(si, j-sj) > center_pixel) {
+                    loop_si: for(si = 0 ; si < 5; si++) {
+                        if(response_buf.getval(si, j - sj) > center_pixel) {
                             input.data = 0;
                             break;
                         }
@@ -261,7 +251,7 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int32_t
     }
 }
 
-void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, reg32_t row, reg32_t col)
+void HCD(stream_io* pstrmInput, stream_io* pstrmOutput, reg32_t row, reg32_t col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
