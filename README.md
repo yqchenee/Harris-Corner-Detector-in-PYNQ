@@ -27,7 +27,7 @@ Our implementation is low latency and low calculation error, and we explore some
 1. Clone this project, and import kernel code to Vivado HLS (version 2019.2), generate a IP called **HCD**.
 2. Import **HCD** IP to Vivado (version 2019.2), then add one DMA (for read and for write), after run auto connection, the block diagram should like following figure.
     ![image](https://github.com/yqchenee/ACA_21S_final/blob/master/docs/block_diagram.png)
-3. Generate bitstream from Vivado GUI or tcl file in build folder, then test your bitstream in pynq.
+3. Generate bitstream from Vivado GUI or tcl file in build folder, then test your bitstream in pynq.<br>
 for more information, see [build.pdf](./docs/build.pdf)
 
 ## Run Test
