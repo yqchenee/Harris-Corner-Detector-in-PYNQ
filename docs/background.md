@@ -3,6 +3,7 @@ In this file, we will introduce Harris corner detector, including detail of algo
 ## Introduction
 Harris corner detector(HCD) is a corner detection operator that is commonly used in computer vision algorithms to extract corners and infer features of an image. It was first introduced by Chris Harris and Mike Stephens in 1988 upon the improvement of Moravec's corner detector.
 A corner is a point whose local neighborhood stands in two dominant and different edge directions. In other words, a corner can be interpreted as the junction of two edges, where an edge is a sudden change in image brightness.
+There are many application of Harris corner detector, such as motion detection, object recognition, video tracking, etc.
 <img src="https://i.imgur.com/QFoaJ6F.png" width="80%" height="80%"/>
 ## Theory
 For a given patch ![](https://i.imgur.com/kGrLKvk.png) and displacement ![](https://i.imgur.com/sMi1WB2.png)
