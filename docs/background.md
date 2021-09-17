@@ -100,6 +100,7 @@ response = M_det / (M_trace + 1e-12)
 6. We use thresholding to filter the pixels with low ![](https://i.imgur.com/aaKCrOH.png).
 7. For every 5x5 region, find the local maxima to determine final result.
 8. Finally, every pixel is a corner or not is determined. 
+Steps 6-8 can be seen in ```post_processing(self, response)```
 
 
 
