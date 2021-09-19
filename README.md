@@ -6,7 +6,7 @@ In this project, we implement a **Harris Corner Detector** using Xilinx Vivado H
 Our implementation is low latency and low calculation error, and we explore some optimization methods for further acceleration of the process.
 
 ## Reprequistites
-* Vitis tool version 2020.2 
+* Vitis tool version 2020.2
 * Evaluation platofrm (PYNQ-Z2)
 
 ## Folder structure
@@ -23,8 +23,14 @@ Our implementation is low latency and low calculation error, and we explore some
     ├── impl_result/        # bit and hwh file and synthesis report for each kernel_optx
     └── build/              # include tcl file for vivado
 
-## Getting Started 
-1. Clone this project, and import kernel code to Vivado HLS (version 2019.2), generate a IP called **HCD**.
+## Getting Started
+### HLS synthesis (Vitis 2020.2)
+1. Clone this project, and import kernel code to Vivado HLS (version 2020.2), generate a IP called **HCD**.
+```
+git clone https://github.com/yqchenee/ACA_21S_final.git
+vitis_hls -f build/script_opt4.tcl
+```
+### HW implementation (Vivado 2019.2)
 2. Import **HCD** IP to Vivado (version 2019.2), then add one DMA (for read and for write), after run auto connection, the block diagram should like following figure.
     ![image](https://github.com/yqchenee/ACA_21S_final/blob/master/docs/block_diagram.png)
 3. Generate bitstream from Vivado GUI or tcl file in build folder, then test your bitstream in pynq.
@@ -41,7 +47,7 @@ Our implementation is low latency and low calculation error, and we explore some
     2. Upload your bitstream and hardware file.
     3. Execute **[HCDhost.ipynb](./src/host/HCDhost.ipynb)** in jupyter notebook, following is the figure after correctly execute it.
         ![image](https://github.com/yqchenee/ACA_21S_final/blob/master/docs/host_test_result.png)
-        
+
 
 ## Result
 * [kerner_opt1](./src/kernel_opt1) : origin design without HLS pragma
