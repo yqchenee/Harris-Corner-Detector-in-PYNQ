@@ -1,9 +1,9 @@
 # Harris Corner Detector in PYNQ
 
 ## Introduction
-**Harris Corner Detector** is a technique to extract features of corners in the image. (for more info, refer to [background.pdf](./docs/background.pdf)) <br>
+**Harris Corner Detector** is a technique to extract features of corners in the image. (for more info, refer to [background](./docs/background.md)) <br>
 In this project, we implement a **Harris Corner Detector** using Xilinx Vivado HLS. The hardware design can be deployed to PYNQ-Z2 borad.
-Our implementation is low latency and low calculation error, and we explore some optimization methods for further acceleration of the process.
+The objectives of our implementation are low latency and low calculation error, thus we explore some optimization methods for further acceleration of the process.
 
 ## Reprequistites
 * Vitis tool version 2020.2
@@ -11,17 +11,20 @@ Our implementation is low latency and low calculation error, and we explore some
 
 ## Folder structure
     ./
-    ├── src/                # source code
-        ├── host/           # host code for pynq
-        ├── kernel_opt1/    # kernel code without HLS pragma
-        ├── kernel_opt2/    # kernel code with inline, unrolling
-        └── kernel_opt3/    # kernel code with inline, unrolling, pipeline
+    ├── build/              # include tcl file for vitis hls synthesis and hw implementation
     ├── data/               # data for testing
-    ├── hls_test/           # test data for xilinx HLS tool.
-    ├── host_test/          # test data for pynq's jupyter notebook
-    ├── docs/               # pdf of our present
-    ├── impl_result/        # bit and hwh file and synthesis report for each kernel_optx
-    └── build/              # include tcl file for vivado
+        ├── hls_test/           # test data for xilinx HLS tool
+        └── host_test/          # test data for pynq's jupyter notebook
+    ├── docs/               # documents of this project, including details of background, system and optimization
+    ├── impl_result/        # bit and hwh file and synthesis report for each kernel_optx (Vivado_hls, Vivado 2019.2)
+    └── src/                # source code
+        ├── host/               # host code for pynq
+        ├── kernel_opt1/        # kernel code without HLS pragma
+        ├── kernel_opt2/        # kernel code with inline, unrolling
+        └── kernel_opt3/        # kernel code with inline, unrolling, pipeline
+
+
+
 
 ## Getting Started
 ### HLS synthesis (Vitis 2020.2)
