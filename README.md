@@ -29,6 +29,7 @@ The objectives of our implementation are low latency and low calculation error, 
 ## Getting Started
 ### HLS synthesis (Vitis 2020.2)
 1. Clone this project, and import kernel code to Vivado HLS (version 2020.2), generate a IP called **HCD**.
+* CLI example for running [opt4](./src/kernel_opt4), it can be changed to optx (x = 1~4).
 ```
 git clone https://github.com/yqchenee/ACA_21S_final.git
 vitis_hls -f build/script_opt4.tcl
