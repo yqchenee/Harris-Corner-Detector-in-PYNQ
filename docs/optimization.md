@@ -1,10 +1,11 @@
 # HCD Optimization
-In this file, we will dig into the details of how we implement and which optimization methods we use in our HCD kernel design.
-The details of how the kernel works can be seen in [background](./background.pdf).
+In this file, we will dig into the details of how we implement and which optimization methods we use in our HCD kernel design. In addition, some results will be shown after the explanation of each optimization methods. (All the results are experimented under images size of 256 x 256)
+
+The details of how the kernel works can be seen in [background](./background.md).
 
 ## Code Example
 First, the implementation of HCD is seperated into top function and several sub-functions, you can have a clear look in figure 1.
-![](https://i.imgur.com/QiyNkMT.png)
+<img src="https://i.imgur.com/QiyNkMT.png)" width="500"/>
 
 -------
 ### Top function (figure 1a)
@@ -42,14 +43,26 @@ First, the implementation of HCD is seperated into top function and several sub-
 ```
 #### Interface
 The top function uses four parameters, the first and second parameters  are used to stream in and out of HCD kernel, and their datatype are objects of class stream, which is one of the template classes provided by the Vivado HLS libraries. The third and forth parameters are used to input the width (col) and height (row) of the picture which needs to go through the HCD process.
+> parameter
 * 0 < width (col) < 1920
 * 0 < height (row) < 1080
+> datatype
+* **AXI_PIXEL**: ap_axiu<32,1,1,1>
+* **stream_io**: hls::stream<**AXI_PIXEL**>
+* **PIXEL**: ap_int<32>
+* **stream_t**: hls::stream<**PIXEL**>
+
 #### Optimization
 Since we want all the sub-functions to execute in parallel, that is, all the sub-functions can read in and write out the data continuouly and not be blocked by the others. 
 Therefore, we use **dataflow** pragma in **line 8** to help us to achieve our goal.
 
 ----------
 ### Sub-functions (figure 1b)
+All the sub-functions follow the following structure.
+In addition, we also need some optimizations in sub-functions.
+
+Due to the resources limitation and the characteristic of dataflow, we utilize **pipeline** pragma in final, and it can be seen in **line 6**.
+The following results show the difference between having pipelining or not in sub-functions.
 ```
 1    void sub_function(stream* input, stream* output, int row, int col)
 2    {
@@ -68,13 +81,12 @@ Therefore, we use **dataflow** pragma in **line 8** to help us to achieve our go
 15       }
 16   }
 ```
-All the sub-functions follow this structure.
-In addition, we also need some optimizations in sub-functions. Due to the resources limitation and the characteristic of dataflow, we utilize **pipeline** pragma in final, and it can be seen in **line 6**.
-The following results show the difference between having pipelining or not in sub-functions.
+
 #### Results without pipelining
 ![](https://i.imgur.com/pBufvgK.png)
 
 #### Results with pipelining
+source code: [kernel_opt3](./src/kernel_opt3)
 ![](https://i.imgur.com/FGn68QL.png)
 
 -----------
@@ -106,11 +118,12 @@ We can see that in **line 4** and **line 7** the variables sum and op are implem
 20       return pixel;
 21   }
 ```
-#### Results with float
+#### Results with float under sub-function blur_img
 ![](https://i.imgur.com/SP8l3kp.png)
 
-#### Results with ap_fixed
+#### Results with ap_fixed under sub-function blur_img
 ![](https://i.imgur.com/AUXwRXa.png)
 
 Based on the results, we know that if we calculate the variable sum using ap_fixed data type, the usage of the resources and the iteration latency can be reduced significantly, that is, it saves some unnecessary resources and time when doing this operation.
 The reason of unnecessary is that, in this application, ap_fixed can fully meet our demands, we can save some time and resources by not doing the floating point operations.
+______
