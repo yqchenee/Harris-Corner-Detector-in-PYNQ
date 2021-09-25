@@ -40,7 +40,7 @@ int main () {
     }
 
     for(int i = 0; i < height; ++i) {
-        for(int j = 0; j < width; ++j) {
+        for(int j = 0; j < width; j+=N) {
             for(int k = 0 ; k < N ; ++k) {
                 gold_output[i][j+k] = 0;
                 fin1 >> tmp;
