@@ -70,17 +70,13 @@ int main () {
             output = strmOutput.read();
 
             for(int k = 0 ; k < N ; ++k) {
-                if(i < 5 && j < 10)
-                    cout << output[k] << ' ';
-                // if(output[k] != gold_output[i][j+k]) {
-                //     cout << "(" << i << ',' << j+k << ") Your output: " << output[k] << ", Golden: " << gold_output[i][j+k] << endl;
-                //     unmatch++;
-                //     success = false;
-                // }
+                if(output[k] != gold_output[i][j+k]) {
+                    cout << "(" << i << ',' << j+k << ") Your output: " << output[k] << ", Golden: " << gold_output[i][j+k] << endl;
+                    unmatch++;
+                    success = false;
+                }
             }
     	}
-        if(i < 5)
-            cout << endl;
     }
     cout << "total unmatch number :" << unmatch << endl;
 
