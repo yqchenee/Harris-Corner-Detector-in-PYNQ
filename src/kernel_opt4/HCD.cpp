@@ -168,9 +168,9 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
             else
                 Iy[vec_index] = getval_N<PIXEL, BUFFER_3>(&buf, 2, j-1) - getval_N<PIXEL, BUFFER_3>(&buf, 0, j-1);
 
-                Ixx[vec_index] = Ix[vec_index] * Ix[vec_index];
-                Iyy[vec_index] = Iy[vec_index] * Iy[vec_index];
-                Ixy[vec_index] = Ix[vec_index] * Iy[vec_index];
+            Ixx[vec_index] = Ix[vec_index] * Ix[vec_index];
+            Iyy[vec_index] = Iy[vec_index] * Iy[vec_index];
+            Ixy[vec_index] = Ix[vec_index] * Iy[vec_index];
 
             if(factor_N) {
                 stream_Ixx->write(Ixx);
