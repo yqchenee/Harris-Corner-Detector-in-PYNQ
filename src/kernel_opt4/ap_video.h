@@ -72,8 +72,15 @@ template <typename T, int LROW, int LCOL>
   T M[LROW][LCOL];
 
   ap_linebuffer(){
-#pragma HLS ARRAY_PARTITION variable=M complete
-};
+#pragma HLS ARRAY_PARTITION variable=M dim=1 complete
+    for(int j = 0 ; j < LCOL ; j++) {
+      #pragma HLS PIPELINE
+      for(int i = 0 ; i < LROW ; i++) {
+        #pragma HLS UNROLL
+          M[i][j] = {};
+      }
+    }
+  };
   ~ap_linebuffer(){};
   void shift_up(int col);
   void shift_down(int col);
@@ -81,7 +88,7 @@ template <typename T, int LROW, int LCOL>
   void insert_top(T value, int col);
   void insert_bottom(T value, int col);
   void insert_at(T value, int row, int col);
-  T getval(int RowIndex,int ColIndex);
+  T getval(int RowIndex,int ColIndex) const;
 };
 
 /* Line buffer shift up
@@ -162,7 +169,7 @@ template <typename T, int LROW, int LCOL>
  * Returns the data value in the line buffer at position RowIndex, ColIndex
  */
 template <typename T, int LROW, int LCOL>
-  T ap_linebuffer<T,LROW,LCOL>::getval(int RowIndex,int ColIndex)
+  T ap_linebuffer<T,LROW,LCOL>::getval(int RowIndex,int ColIndex) const
 {
 #pragma HLS inline
 
@@ -179,10 +186,10 @@ template <typename T, int LROW, int LCOL>
 
   ap_window(){
 #pragma HLS ARRAY_PARTITION variable=M dim=0 complete
-    //#pragma HLS data_pack variable=M
 };
   ~ap_window(){};
   void shift_right();
+  void shift_right_N(int n);
   void shift_left();
   void shift_up();
   void shift_down();
@@ -208,6 +215,19 @@ template <typename T, int LROW, int LCOL>
     for(j=0; j < LCOL-1; j++){
 #pragma HLS unroll
       M[i][j] = M[i][j+1];
+    }
+  }
+}
+template <typename T, int LROW, int LCOL>
+  void ap_window<T,LROW,LCOL>::shift_right_N(int n)
+{
+#pragma HLS inline
+  int i, j;
+  for(i = 0; i < LROW; i++){
+#pragma HLS unroll
+    for(j=0; j < LCOL-n; j++){
+#pragma HLS unroll
+      M[i][j] = M[i][j+n];
     }
   }
 }
@@ -283,7 +303,7 @@ template <typename T, int LROW, int LCOL>
   int i;
   for(i = 0; i < LROW; i++){
 #pragma HLS unroll
-      M[i][0] = M[i][LCOL-1];
+      M[i][1] = M[i][3];
   }
 }
 
@@ -294,7 +314,7 @@ template <typename T, int LROW, int LCOL>
   int i;
   for(i = 0; i < LROW; i++){
 #pragma HLS unroll
-      M[i][LCOL-1] = M[i][0];
+      M[i][2] = M[i][0];
   }
 }
 
