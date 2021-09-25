@@ -79,7 +79,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
             if (j < col) {
                 window.insert(buf.getval(2,j),0,2);
                 window.insert(buf.getval(1,j),1,2);
-                window.insert(tmp,2,2);
+                window.insert(buf.getval(0,j),2,2);
             }
 
             if (i == 0 || j == 0)
