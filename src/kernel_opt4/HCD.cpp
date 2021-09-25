@@ -1,8 +1,6 @@
 #include "HCD.h"
 #include "cmath"
 
-#include <iostream>
-using namespace std;
 
 const int unroll_factor = N;
 
@@ -124,14 +122,6 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
             blur[v_ind_ind(j-1)] = Gaussian_filter_1<PIXEL, WINDOW>(&window, v_ind_ind(j));
 
             if(factor_N) {
-                // if(i < 5 & j < 5)
-                //     cout << i << ' ' << j << ' ' << blur[0] << ' ' << blur[1] << endl;
-                // if(i < 5 & j > 250)
-                //     cout << i << ' ' << j << ' ' << blur[0] << ' ' << blur[1] << endl;
-                // if(i > 250 & j < 5)
-                //     cout << i << ' ' << j << ' ' << blur[0] << ' ' << blur[1] << endl;
-                // if(i > 250 & j > 250)
-                //     cout << i << ' ' << j << ' ' << blur[0] << ' ' << blur[1] << endl;
                 stream_blur->write(blur);
             }
         }
@@ -329,10 +319,10 @@ void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, int row, int col)
     // Step 5: Compute the det and trace of matrix M (M = [[Sxx, Sxy], [Sxy, Syy]])
     // Step 6: Compute the response of the detector by det/(trace+1e-12)
     // compute_det_trace(&stream_Sxx, &stream_Syy, &stream_Sxy, &stream_response, row, col);
-    compute_det_trace(&stream_Sxx, &stream_Syy, &stream_Sxy, pstrmOutput, row, col);
+    compute_det_trace(&stream_Sxx, &stream_Syy, &stream_Sxy, &stream_response, row, col);
 
     // Step 7: Post processing
-    // find_local_maxima(&stream_response, pstrmOutput, row, col);
+    find_local_maxima(&stream_response, pstrmOutput, row, col);
 
     return;
 }
