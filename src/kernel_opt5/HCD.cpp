@@ -281,6 +281,40 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
     }
 }
 
+void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
+{
+    while()
+
+    ap_int<512> output;
+    int arr_size = ceil(row * col / 512.0);
+    int arr_count = 0, i = 0, lb = 0, offset =0;
+
+    while(arr_count < arr_size) {
+        if (offset) {
+            for (i=offset-1; i< N; i++) {
+                output.set_bit(i-1, out_vec[i]);
+                ++lb;
+            }
+        }
+        while (lb < 512-N) {
+            out_vec = str.read();
+            for (i = 0; i < N; ++i) {
+                output.set_bit(lb + i, out_vec[i]);
+            }
+            lb += N;
+        }
+        out_vec = str.read();
+        offset = 512-lb;
+        for (i = 0; i < offset; ++i) {
+            output.set_bit(lb+i, out_vec[i]);
+        }
+        memOutput[arr_count] = output;
+
+        lb =0;
+        ++arr_count;
+    }
+}
+
 void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
 {
     int arr_size = ceil(row * col * 24.0 / 512);
