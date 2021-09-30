@@ -1,5 +1,6 @@
 #include "HCD.h"
 #include "cmath"
+#include "math.h"
 
 
 const int unroll_factor = N;
@@ -282,6 +283,44 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
 
 void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
 {
+    int arr_size = ceil(row * col * 24.0 / 512);
+    int arr_count = 0;
+    int lb = 0;
+    int rb = 512 - 24 * N;
+    PIXEL_vec out_vec;
+
+    int j, offset1, offset2 =0;
+    while(arr_count < arr_size) {
+        if (offset2 != 0) {
+            out_vec[offset1].range(23-offset2,offset2)
+                = menInput[arr_count].range(23-offset2, 0);
+            ++offset1;
+        }
+
+        while(lb < rb) {
+            for(j = 0 ; j < N ; ++j)
+                out_vec[j+offset1] = menInput[arr_count].range(lb+23, lb);
+            lb += 24 * N;
+            str-> write(out_vec);
+        }
+
+        // handle left bit
+        int left_bit = 512 - lb;
+        for (offset1 =0; offset1 < left_bit /24; ++offset1) {
+            out_vec[offset1] = menInput[arr_count].range(lb+23, lb);
+            lb += 24;
+        }
+        offset2 = left_bit % 24;
+        if (offset2) {
+            out_vec[++offset1].range(offset2-1,0) = 
+                menInput[arr_count].range(511, lb);
+        }
+        arr_count +=1;
+        lb =0;
+    }
+    // fix : input size must be mutiply of 512 and 24 * N ??
+
+    /**
     int size = row * col;
     int data_size = 24 * N;  // 24 bits / pixel
     int count = 0;
@@ -289,12 +328,13 @@ void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
     while(count < size) {
         PIXEL_vec out_vec;
         for(int i = 0 ; i < N ; i++) {
-            out_vec[i] = menInput-> range(lb+24, lb);
+            out_vec[i] = menInput-> range(lb+23, lb);
             lb += 24;
         }
         str-> write(out_vec);
         count += N;
     }
+    **/
 }
 
 void HCD(ap_int<512>* menInput, stream_t* pstrmOutput, int row, int col)
