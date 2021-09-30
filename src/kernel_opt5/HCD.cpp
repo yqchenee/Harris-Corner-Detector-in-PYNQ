@@ -283,10 +283,8 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
 
 void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
 {
-    while()
-
     ap_int<512> output;
-    int arr_size = ceil(row * col / 512.0);
+    int arr_size = ceil(row * col / 512.0); // one bit per pixel
     int arr_count = 0, i = 0, lb = 0, offset =0;
 
     while(arr_count < arr_size) {
