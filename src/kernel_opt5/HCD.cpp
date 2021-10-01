@@ -48,6 +48,7 @@ void process_input(stream_t* pstrmInput, stream_t* stream_gray, int row, int col
     int j;
     PIXEL_vec input ;
     PIXEL_vec input_gray_pix;
+    int time =0;
 
     for (i = 0; i < row; ++i) {
     #pragma HLS loop_tripcount max=256
@@ -59,6 +60,7 @@ void process_input(stream_t* pstrmInput, stream_t* stream_gray, int row, int col
             if (j % N != 0) continue;
 
             input = pstrmInput->read();
+            ++time;
             for(int k = 0 ; k < N ; ++k) {
                 input_gray_pix[k] = (input[k].range(7,0)
                         + input[k].range(15,8)
@@ -68,6 +70,7 @@ void process_input(stream_t* pstrmInput, stream_t* stream_gray, int row, int col
             stream_gray->write(input);
         }
     }
+    std::cout<< "iasn " << time << std::endl;
 }
 
 void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
@@ -287,13 +290,19 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
     int batch_count =0, lb = 0;
     int batch_size = row * col / N;
     int arr_index = 0;
+    int time = 0;
 
     ap_int<512+N> buf;
     PIXEL_vec in_vec;
 
+    for(int k=0; k<32768; k++) {
+    	in_vec = str->read();
+    }
+/**
     while(batch_count < batch_size) {
         while (lb < 512) {
             in_vec = str->read();
+            ++time;
             for (int i = 0; i < N; ++i) {
                 buf.set_bit(lb, in_vec[i]);
                 ++lb;
@@ -311,7 +320,8 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
             lb = 0;
         }
         ++arr_index;
-    }
+    }**/
+    std::cout << "output " << time << std::endl;
 }
 
 void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
@@ -323,29 +333,40 @@ void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
     int arr_index = 0;
     ap_int<512+24*N> buf;
     PIXEL_vec out_vec;
-    
-    buf.range(512,0) = menInput[0];
+    int write_time = 0;
+    int batch_rb = 512;
+
+    buf.range(511,0) = menInput[0];
     while(batch_count < batch_size) {
-        int batch_rb = rb - (rb-lb) % (24*N);
+    	buf.range(rb-1, rb-512) = menInput[arr_index];
+        batch_rb = rb - (rb % (24*N));
+
         while(lb < batch_rb) {
             for(int j = 0 ; j < N ; ++j)
                 out_vec[j] = buf.range(lb+23, lb);
             lb += 24 * N;
             ++batch_count; 
             str-> write(out_vec);
+            ++write_time;
         }
-        buf.range(511-batch_rb, 0) = menInput[arr_index].range(512,lb);
-        ++arr_index;
-        buf.range(1024-batch_rb, 512-batch_rb) = menInput[arr_index];
+
+        if (rb-batch_rb > 0){
+        	buf.range(rb-batch_rb-1, 0) = buf.range(rb-1,lb);
+        }
 
         if (arr_index == arr_size -1)
-            rb = 24 * N * ceil((row * col * 24 % 512) / 24*N);
+        	rb = 24 * N * ceil((row * col * 24 % 512) / 24.0*N);
         else
-            rb = 1024-batch_rb;
+            rb = 512+rb-batch_rb;
+
+        ++arr_index;
+        lb =0;
     }
+    std::cout << write_time << std::endl;
 }
 
-void HCD(ap_int<512>* menInput, ap_int<512>* menOutput, int row, int col)
+
+void HCD(ap_int<512>* menInput, ap_int<512>* menOutput,  int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
@@ -366,6 +387,7 @@ void HCD(ap_int<512>* menInput, ap_int<512>* menOutput, int row, int col)
     stream_t stream_Sxy;
     stream_t stream_Syy;
     stream_t stream_response;
+    stream_t pstrmOutput;
 
 #pragma HLS DATAFLOW
     men2str(menInput, &pstrmInput, row, col);
@@ -390,7 +412,9 @@ void HCD(ap_int<512>* menInput, ap_int<512>* menOutput, int row, int col)
     compute_det_trace(&stream_Sxx, &stream_Syy, &stream_Sxy, &stream_response, row, col);
 
     // Step 7: Post processing
-    find_local_maxima(&stream_response, pstrmOutput, row, col);
+    find_local_maxima(&stream_response, &pstrmOutput, row, col);
+
+    str2mem(&pstrmOutput, menOutput, row, col);
 
     return;
 }

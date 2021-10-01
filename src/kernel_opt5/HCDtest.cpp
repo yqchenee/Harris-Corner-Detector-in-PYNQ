@@ -57,7 +57,7 @@ int main () {
         while (lb < rb) {
             // consume 24 * N bit
             for(int k = 0 ; k < N ; ++k) {
-                for (l = 0; l < 3; ++l) {
+                for (int l = 0; l < 3; ++l) {
                     fin1 >> tmp;
                     buf.range(lb+7, lb) = tmp;
                     lb += 8;
@@ -67,7 +67,7 @@ int main () {
         }
         mem_input[arr_index] = buf.range(511,0);
         if (lb > rb) {
-            buf.range(lb-rb,0) = buf.range(lb,rb);
+            buf.range(lb-rb-1,0) = buf.range(lb-1,rb);
             lb = lb - rb;
         } else {
             lb = 0;
@@ -86,7 +86,7 @@ int main () {
 
     int unmatch = 0;
     bool success = true;
-    for(int i = 0; i < width; ++i) {
+    /**for(int i = 0; i < width; ++i) {
     	for(int j = 0; j < height; j += N) {
             output = strmOutput.read();
 
@@ -98,7 +98,7 @@ int main () {
                 }
             }
     	}
-    }
+    }**/
     cout << "total unmatch number :" << unmatch << endl;
 
     return success ? 0 : 1;
