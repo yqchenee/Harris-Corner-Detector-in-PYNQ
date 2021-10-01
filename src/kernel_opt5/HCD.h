@@ -26,7 +26,7 @@ typedef ap_linebuffer<PIXEL_vec, 5, MAX_WIDTH/N> BUFFER_5;
 
 void HCD(
     ap_int<512>* menInput,
-    stream_t* pstrmOutput,
+    ap_int<512>* menOutput,
     int row,
     int col
 );

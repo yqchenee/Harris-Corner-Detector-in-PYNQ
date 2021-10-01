@@ -41,8 +41,10 @@ int main () {
         return 1;
     }
 
-    int size = ceil(width * height * 24.0 / 512);
-    ap_int<512> mem_input[size];
+    int input_size = ceil(width * height * 24.0 / 512);
+    int output_size = ceil(width * height /512.0);
+    ap_int<512> mem_input[input_size];
+    ap_int<512> mem_output[output_size];
     ap_int<512+24*N> buf;
 
     int batch_size = width * height / N;
@@ -80,7 +82,7 @@ int main () {
     }
 
     // Hardware Function
-    HCD(&strmInput, &strmOutput, height, width);
+    HCD(mem_input, mem_output, height, width);
 
     int unmatch = 0;
     bool success = true;

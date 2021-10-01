@@ -286,6 +286,7 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
     int arr_size = ceil(row * col * 24.0 / 512);
     int batch_count =0, lb = 0;
     int batch_size = row * col / N;
+    int arr_index = 0;
 
     ap_int<512+N> buf;
     PIXEL_vec in_vec;
@@ -293,7 +294,7 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
     while(batch_count < batch_size) {
         while (lb < 512) {
             in_vec = str->read();
-            for (i = 0; i < N; ++i) {
+            for (int i = 0; i < N; ++i) {
                 buf.set_bit(lb, in_vec[i]);
                 ++lb;
             }
@@ -302,7 +303,7 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
 
         if (lb > 512) {
             int outlier = (lb -512);
-            for (i = 0; i < outlier; ++i) {
+            for (int i = 0; i < outlier; ++i) {
                 buf.set_bit(i, in_vec[i+N-outlier]);
             }
             lb = outlier;
@@ -327,7 +328,7 @@ void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
     while(batch_count < batch_size) {
         int batch_rb = rb - (rb-lb) % (24*N);
         while(lb < batch_rb) {
-            for(j = 0 ; j < N ; ++j)
+            for(int j = 0 ; j < N ; ++j)
                 out_vec[j] = buf.range(lb+23, lb);
             lb += 24 * N;
             ++batch_count; 
@@ -338,13 +339,13 @@ void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
         buf.range(1024-batch_rb, 512-batch_rb) = menInput[arr_index];
 
         if (arr_index == arr_size -1)
-            rb = 24 * N * ceil((row * col * 24.0 % 512) / 24*N);
+            rb = 24 * N * ceil((row * col * 24 % 512) / 24*N);
         else
             rb = 1024-batch_rb;
     }
 }
 
-void HCD(ap_int<512>* menInput, stream_t* pstrmOutput, int row, int col)
+void HCD(ap_int<512>* menInput, ap_int<512>* menOutput, int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
