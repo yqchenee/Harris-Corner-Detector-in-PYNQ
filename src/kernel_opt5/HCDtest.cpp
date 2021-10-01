@@ -1,14 +1,16 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include "math.h"
 #include "HCD.h"
+#include "malloc.h"
 
 using namespace std;
 
 //Arrays to send and receive data from the accelerator
 static PIXEL_vec input;
 static PIXEL_vec output;
-static int gold_output[MAX_HEIGHT][MAX_WIDTH];
+static int gold_output[MAX_HEIGHT][MAX_WIDTH] = {0};
 
 int main () {
     int x,y;
@@ -39,19 +41,36 @@ int main () {
         return 1;
     }
 
-    for(int i = 0; i < height; ++i) {
-        for(int j = 0; j < width; j+=N) {
+    int size = ceil(width * height * 24.0 / 512);
+    ap_int<512> mem_input[size];
+    ap_int<512+24*N> buf;
+
+    int batch_size = width * height / N;
+    int batch_count = 0;
+    int lb = 0;
+    int rb = 512;
+    int arr_index = 0;
+
+    while (batch_count < batch_size) {
+        while (lb < rb) {
+            // consume 24 * N bit
             for(int k = 0 ; k < N ; ++k) {
-                gold_output[i][j+k] = 0;
-                fin1 >> tmp;
-                input[k].range(7, 0) = tmp;
-                fin1 >> tmp;
-                input[k].range(15, 8) = tmp;
-                fin1 >> tmp;
-                input[k].range(23, 16) = tmp;
+                for (l = 0; l < 3; ++l) {
+                    fin1 >> tmp;
+                    buf.range(lb+7, lb) = tmp;
+                    lb += 8;
+                }
             }
-            strmInput.write(input);
+            ++batch_count;
         }
+        mem_input[arr_index] = buf.range(511,0);
+        if (lb > rb) {
+            buf.range(lb-rb,0) = buf.range(lb,rb);
+            lb = lb - rb;
+        } else {
+            lb = 0;
+        }
+        arr_index++;
     }
 
     while(!fin2.eof()){
