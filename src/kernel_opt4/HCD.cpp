@@ -26,19 +26,11 @@ P Gaussian_filter_1(W* window, int idx)
     for (i = 0; i < 3; i++) {
         for (j = 0; j < 3; j++) {
             int rc = idx+j;
-            // sum += op[i][j] * ((rc == max_col || rc == -1) ? P(0) : buffer-> getval(i, rc/N)[rc%N] );
             sum += op[i][j] * window-> getval(i, rc);
         }
     }
     pixel = P(sum);
     return pixel;
-}
-
-template<typename P, typename BUF>
-P getval_N(BUF* buffer, int i, int j)
-{
-#pragma HLS INLINE
-    return buffer-> getval(i, j/N)[j%N];
 }
 
 void process_input(stream_t* pstrmInput, stream_t* stream_gray, int row, int col)
@@ -106,7 +98,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
                     }
                 }
 
-                if(j == 0)
+                if(j == 0)  // fit to factor_N
                     window.rreflect();
                 else if (j == col)
                     window.lreflect();
@@ -138,6 +130,7 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
     PIXEL_vec   Ix, Iy;
     PIXEL_vec   Ixx, Iyy, Ixy;
     BUFFER_3    buf;
+    WINDOW      window;
 
     for (i = 0 ; i < row+1; i++) {
     #pragma HLS loop_tripcount max=257
@@ -149,24 +142,32 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
 
             bool factor_N = (j % N == 0) ? 1 : 0;
 
-            if (factor_N & (j < col)) {
+            if (factor_N) {
+                window.shift_right_N(N);
+
+                if (j < col) {
                     buf.shift_down(v_ind(j));
-                if (i < row) {
-                    input = stream_blur->read();
-                    buf.insert_top(input, v_ind(j));
+                    if (i < row) {
+                        input = stream_blur->read();
+                        buf.insert_top(input, v_ind(j));
+                    }
+
+                    for(int k = 0 ; k < N ; k++) {
+                        window.insert(buf.getval(0, v_ind(j))[k], 0, 2+k);
+                        window.insert(buf.getval(1, v_ind(j))[k], 1, 2+k);
+                        window.insert(buf.getval(2, v_ind(j))[k], 2, 2+k);
+                    }
                 }
             }
 
             if (j == 0 || i == 0) continue;
             int vec_index = v_ind_ind(j-1);
-            if (j == 1 | j == col)
-                Ix[vec_index] = zero;
-            else
-                Ix[vec_index] = getval_N<PIXEL, BUFFER_3>(&buf, 1, j-2) - getval_N<PIXEL, BUFFER_3>(&buf, 1, j);
-            if (i == 1 | i == row)
-                Iy[vec_index] = zero;
-            else
-                Iy[vec_index] = getval_N<PIXEL, BUFFER_3>(&buf, 2, j-1) - getval_N<PIXEL, BUFFER_3>(&buf, 0, j-1);
+            int window_index = v_ind_ind(j);
+
+            PIXEL tmp_x = window.getval(1, window_index) - window.getval(1, window_index+2);
+            Ix[vec_index] = (j == 1 | j == col) ? PIXEL(0) : tmp_x;
+            PIXEL tmp_y = window.getval(0, window_index+1) - window.getval(2, window_index+1);
+            Iy[vec_index] = (i == 1 | i == row) ? PIXEL(0) : tmp_y;
 
             Ixx[vec_index] = Ix[vec_index] * Ix[vec_index];
             Iyy[vec_index] = Iy[vec_index] * Iy[vec_index];
@@ -238,6 +239,7 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
     PIXEL_vec   input, output;
     PIXEL_vec   center_pixel;
     BUFFER_5    buf;
+    WINDOW_5    window;
 
     loop_i: for (int i = 0 ; i < row+2; i++) {
     #pragma HLS loop_tripcount max=258
@@ -247,31 +249,40 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
     #pragma HLS UNROLL factor=unroll_factor
     #pragma HLS pipeline
 
-            if ( (j % N == 0) & (j < col)) {
+            if (j % N == 0) {
+                window.shift_right_N(N);
+
+                if (j < col) {
                     buf.shift_down(v_ind(j));
-                if (i < row) {
-                    input = stream_response->read();
-                    buf.insert_top(input, v_ind(j));
+                    if (i < row) {
+                        input = stream_response->read();
+                        buf.insert_top(input, v_ind(j));
+                    }
+
+                    for(int k = 0 ; k < N ; k++) {
+                        window.insert(buf.getval(0, v_ind(j))[k], 0, 4+k);
+                        window.insert(buf.getval(1, v_ind(j))[k], 1, 4+k);
+                        window.insert(buf.getval(2, v_ind(j))[k], 2, 4+k);
+                        window.insert(buf.getval(3, v_ind(j))[k], 3, 4+k);
+                        window.insert(buf.getval(4, v_ind(j))[k], 4, 4+k);
+                    }
                 }
             }
 
             if (i < 2 || j < 2) continue;
 
             int vec_index = v_ind_ind(j-2);
+            int window_index = v_ind_ind(j);
 
-            center_pixel[vec_index] = getval_N<PIXEL, BUFFER_5>(&buf, 2, j-2);
-            output[vec_index] = 0;
-            if (center_pixel[vec_index] != 0 && i > 3 && j > 3 && i < row && j < col) {
-                output[vec_index] = 1;
-                loop_sj: for(int sj = 4; sj >= 0; sj--) {
-                    loop_si: for(int si = 0 ; si < 5; si++) {
-                        if(getval_N<PIXEL, BUFFER_5>(&buf, si, j-sj) > center_pixel[vec_index]) {
-                            output[vec_index] = 0;
-                            break;
-                        }
-                    }
+            center_pixel[vec_index] = window.getval(2, window_index + 2);
+            PIXEL tmp = 1;
+            for(int wi = 0 ; wi < 5 ; wi++) {
+                for(int wj = 0 ; wj < 5 ; wj++) {
+                    if(window.getval(wi, window_index + wj) > center_pixel[vec_index])
+                        tmp = 0;
                 }
             }
+            output[vec_index] = (center_pixel[vec_index] != 0 && i > 3 && j > 3 && i < row && j < col) ? tmp : PIXEL(0);
 
             if( ((j % N) == 1) ) {
                 pstrmOutput-> write(output);
@@ -318,7 +329,6 @@ void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, int row, int col)
 
     // Step 5: Compute the det and trace of matrix M (M = [[Sxx, Sxy], [Sxy, Syy]])
     // Step 6: Compute the response of the detector by det/(trace+1e-12)
-    // compute_det_trace(&stream_Sxx, &stream_Syy, &stream_Sxy, &stream_response, row, col);
     compute_det_trace(&stream_Sxx, &stream_Syy, &stream_Sxy, &stream_response, row, col);
 
     // Step 7: Post processing
