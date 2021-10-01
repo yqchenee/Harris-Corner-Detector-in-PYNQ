@@ -328,14 +328,15 @@ void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
         batch_rb = rb - (rb % (24*N));
 
         while(lb < batch_rb) {
-            for(int j = 0 ; j < N ; ++j)
+            for(int j = 0 ; j < N ; ++j) {
                 out_vec[j] = buf.range(lb+23, lb);
-            lb += 24 * N;
+                lb += 24;
+            }
             ++batch_count; 
             str-> write(out_vec);
         }
 
-        if (rb-batch_rb > 0){
+        if (rb-batch_rb > 0) {
         	buf.range(rb-batch_rb-1, 0) = buf.range(rb-1,lb);
         }
 
