@@ -48,7 +48,6 @@ void process_input(stream_t* pstrmInput, stream_t* stream_gray, int row, int col
     int j;
     PIXEL_vec input ;
     PIXEL_vec input_gray_pix;
-    int time =0;
 
     for (i = 0; i < row; ++i) {
     #pragma HLS loop_tripcount max=256
@@ -60,7 +59,6 @@ void process_input(stream_t* pstrmInput, stream_t* stream_gray, int row, int col
             if (j % N != 0) continue;
 
             input = pstrmInput->read();
-            ++time;
             for(int k = 0 ; k < N ; ++k) {
                 input_gray_pix[k] = (input[k].range(7,0)
                         + input[k].range(15,8)
@@ -70,7 +68,6 @@ void process_input(stream_t* pstrmInput, stream_t* stream_gray, int row, int col
             stream_gray->write(input);
         }
     }
-    std::cout<< "iasn " << time << std::endl;
 }
 
 void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
@@ -290,51 +287,40 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
     int batch_count =0, lb = 0;
     int batch_size = row * col / N;
     int arr_index = 0;
-    int time = 0;
 
     ap_int<512+N> buf;
     PIXEL_vec in_vec;
 
-    for(int k=0; k<32768; k++) {
-    	in_vec = str->read();
-    }
-/**
     while(batch_count < batch_size) {
         while (lb < 512) {
             in_vec = str->read();
-            ++time;
             for (int i = 0; i < N; ++i) {
                 buf.set_bit(lb, in_vec[i]);
                 ++lb;
             }
+            ++batch_count;
         }
+
         memOutput[arr_index] = buf.range(511,0);
 
         if (lb > 512) {
             int outlier = (lb -512);
-            for (int i = 0; i < outlier; ++i) {
-                buf.set_bit(i, in_vec[i+N-outlier]);
-            }
+            buf.range(outlier,0) = in_vec[N-1,N-outlier];
             lb = outlier;
-        } else {
-            lb = 0;
         }
+        else
+            lb = 0;
         ++arr_index;
-    }**/
-    std::cout << "output " << time << std::endl;
+    }
 }
 
 void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
 {
     int arr_size = ceil(row * col * 24.0 / 512);
-    int batch_count = 0;
+    int batch_count = 0, arr_index =0, lb=0, rb=512, batch_rb =512;
     int batch_size = row * col / N;
-    int lb =0, rb = 512;
-    int arr_index = 0;
     ap_int<512+24*N> buf;
     PIXEL_vec out_vec;
-    int write_time = 0;
-    int batch_rb = 512;
 
     buf.range(511,0) = menInput[0];
     while(batch_count < batch_size) {
@@ -347,7 +333,6 @@ void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
             lb += 24 * N;
             ++batch_count; 
             str-> write(out_vec);
-            ++write_time;
         }
 
         if (rb-batch_rb > 0){
@@ -362,7 +347,6 @@ void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
         ++arr_index;
         lb =0;
     }
-    std::cout << write_time << std::endl;
 }
 
 
