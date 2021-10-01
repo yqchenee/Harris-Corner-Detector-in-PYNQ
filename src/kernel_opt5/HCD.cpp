@@ -305,7 +305,9 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
 
         if (lb > 512) {
             int outlier = (lb -512);
-            buf.range(outlier,0) = in_vec[N-1,N-outlier];
+            for (int i = 0; i < outlier; ++i) {
+                buf.set_bit(i, in_vec[i+N-outlier]);
+            }
             lb = outlier;
         }
         else
@@ -355,8 +357,8 @@ void HCD(ap_int<512>* menInput, ap_int<512>* menOutput,  int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
-#pragma HLS INTERFACE both port=menInput
-#pragma HLS INTERFACE both port=menOutput
+#pragma HLS INTERFACE m_axi port=menInput depth=500
+#pragma HLS INTERFACE m_axi port=menOutput depth=500
 #pragma HLS INTERFACE s_axilite port=return
 
     int i;

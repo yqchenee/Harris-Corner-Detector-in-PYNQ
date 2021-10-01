@@ -88,8 +88,8 @@ int main () {
     bool success = true;
     for(int i = 0; i < width; ++i) {
     	for(int j = 0; j < height; j += N) {
-            int arr_index = (i+j) / 512;
-            int arr_offset = (i+j) % 512;
+            int arr_index = (width*i+j) / 512;
+            int arr_offset = (width*i+j) % 512;
             if(mem_output[arr_index][arr_offset] != gold_output[i][j]) {
                 cout << "(" << i << ',' << j << ") Your output: " << mem_output[arr_index][arr_offset] << ", Golden: " << gold_output[i][j] << endl;
                 unmatch++;
