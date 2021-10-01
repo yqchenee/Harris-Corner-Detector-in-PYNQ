@@ -354,8 +354,8 @@ void HCD(ap_int<512>* menInput, ap_int<512>* menOutput,  int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
-#pragma HLS INTERFACE axis register both port=pstrmOutput
-#pragma HLS INTERFACE axis register both port=pstrmInput
+#pragma HLS INTERFACE both port=menInput
+#pragma HLS INTERFACE both port=menOutput
 #pragma HLS INTERFACE s_axilite port=return
 
     int i;

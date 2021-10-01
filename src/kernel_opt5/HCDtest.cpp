@@ -86,19 +86,17 @@ int main () {
 
     int unmatch = 0;
     bool success = true;
-    /**for(int i = 0; i < width; ++i) {
+    for(int i = 0; i < width; ++i) {
     	for(int j = 0; j < height; j += N) {
-            output = strmOutput.read();
-
-            for(int k = 0 ; k < N ; ++k) {
-                if(output[k] != gold_output[i][j+k]) {
-                    cout << "(" << i << ',' << j+k << ") Your output: " << output[k] << ", Golden: " << gold_output[i][j+k] << endl;
-                    unmatch++;
-                    success = false;
-                }
+            int arr_index = (i+j) / 512;
+            int arr_offset = (i+j) % 512;
+            if(mem_output[arr_index][arr_offset] != gold_output[i][j]) {
+                cout << "(" << i << ',' << j << ") Your output: " << mem_output[arr_index][arr_offset] << ", Golden: " << gold_output[i][j] << endl;
+                unmatch++;
+                success = false;
             }
     	}
-    }**/
+    }
     cout << "total unmatch number :" << unmatch << endl;
 
     return success ? 0 : 1;
