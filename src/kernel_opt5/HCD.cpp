@@ -292,8 +292,8 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
     for (i = 0; i < row*col/N; ++i) {
         in_vec = str->read();
 
-        #pragma HLS PIPELINE
         for (j = 0; j < N; ++j) {
+            #pragma HLS PIPELINE
             buf.set_bit(index, in_vec[j]);
             ++index;
         }
@@ -340,8 +340,8 @@ void men2str(Stream_mem* stream_mem, stream_t* str, int row, int col)
 
         batch_size = index/24/N;
         for (j = 0; j < batch_size; ++j) {
-            #pragma HLS PIPELINE
             for (k = 0; k < N; ++k) {
+                #pragma HLS PIPELINE
                 out_vec[k] = buf.range(lb+23, lb);
                 lb += 24;
             }
@@ -365,12 +365,8 @@ void HCD(ap_int<512>* menInput, ap_int<512>* menOutput,  int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
-#pragma HLS INTERFACE m_axi port=menInput depth=500
-
-//#pragma HLS INTERFACE m_axi port=menOutput depth=500
-#pragma HLS INTERFACE m_axi max_write_burst_length=512 latency=10 depth=1024 bundle=gmem0 port=menOutput
-//#pragma HLS INTERFACE s_axilite port = outTop bundle = control
-
+#pragma HLS INTERFACE m_axi max_read_burst_length=512  latency=100 depth=1024 port=menInput
+#pragma HLS INTERFACE m_axi max_write_burst_length=512 latency=100 depth=1024 port=menOutput
 #pragma HLS INTERFACE s_axilite port=return
 
     int i;
