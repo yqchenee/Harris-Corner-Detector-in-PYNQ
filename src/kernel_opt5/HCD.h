@@ -19,6 +19,7 @@ typedef unsigned int uint32_t;
 typedef ap_int<32> PIXEL;
 typedef hls::vector<PIXEL, N> PIXEL_vec;
 typedef hls::stream<PIXEL_vec> stream_t;
+typedef hls::stream<ap_int<512>> Stream_mem;
 
 typedef ap_window<PIXEL, 3, N+2> WINDOW;
 typedef ap_linebuffer<PIXEL_vec, 3, MAX_WIDTH/N> BUFFER_3;

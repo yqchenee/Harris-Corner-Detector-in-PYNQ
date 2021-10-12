@@ -283,72 +283,74 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
 
 void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
 {
-    int arr_size = ceil(row * col * 24.0 / 512);
-    int batch_count =0, lb = 0;
-    int batch_size = row * col / N;
     int arr_index = 0;
-
     ap_int<512+N> buf;
     PIXEL_vec in_vec;
 
-    while(batch_count < batch_size) {
-        while (lb < 512) {
-            in_vec = str->read();
-            for (int i = 0; i < N; ++i) {
-                buf.set_bit(lb, in_vec[i]);
-                ++lb;
-            }
-            ++batch_count;
+    int i, j, k, outlier;
+    int index = 0;
+    for (i = 0; i < row*col/N; ++i) {
+        in_vec = str->read();
+
+        #pragma HLS PIPELINE
+        for (j = 0; j < N; ++j) {
+            buf.set_bit(index, in_vec[j]);
+            ++index;
         }
 
+        if (index >= 512) {
+            memOutput[arr_index] = buf.range(511,0);
+            ++arr_index;
+
+            outlier = (index-512);
+            buf.range(outlier-1, 0) = buf.range(index, 512);
+            index = outlier;
+        }
+        
+    }
+
+    if(index != 0) 
         memOutput[arr_index] = buf.range(511,0);
+}
 
-        if (lb > 512) {
-            int outlier = (lb -512);
-            for (int i = 0; i < outlier; ++i) {
-                buf.set_bit(i, in_vec[i+N-outlier]);
-            }
-            lb = outlier;
-        }
-        else
-            lb = 0;
-        ++arr_index;
+void getMem(ap_int<512>* menInput, Stream_mem* str, int row, int col)
+{
+    int arr_size = ceil(row * col * 24.0 / 512);
+    for (i = 0; i < arr_size; ++i) {
+        #pragma HLS PIPELINE
+    	str.write(menInput[i]);
     }
 }
 
-void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
+void men2str(Stream_mem* stream_mem, stream_t str, int row, int col)
 {
     int arr_size = ceil(row * col * 24.0 / 512);
-    int batch_count = 0, arr_index =0, lb=0, rb=512, batch_rb =512;
-    int batch_size = row * col / N;
+
     ap_int<512+24*N> buf;
     PIXEL_vec out_vec;
 
-    buf.range(511,0) = menInput[0];
-    while(batch_count < batch_size) {
-    	buf.range(rb-1, rb-512) = menInput[arr_index];
-        batch_rb = rb - (rb % (24*N));
+    int i, j, k, outlier, batch_size;
+    int index = 0;
+    int lb = 0;
+    for (i = 0; i < arr_size; ++i) {
+        #pragma HLS PIPELINE
+    	buf.range(index+511, index) = stream_mem.read();
+        index += 512;
 
-        while(lb < batch_rb) {
-            for(int j = 0 ; j < N ; ++j) {
-                out_vec[j] = buf.range(lb+23, lb);
+        batch_size = index/24/N;
+        for (j = 0; j < batch_size; ++j) {
+            #pragma HLS PIPELINE
+            for (k = 0; k < N; ++k) {
+                out_vec[k] = buf.range(lb+23, lb);
                 lb += 24;
             }
-            ++batch_count; 
-            str-> write(out_vec);
         }
+        str-> write(out_vec);
 
-        if (rb-batch_rb > 0) {
-        	buf.range(rb-batch_rb-1, 0) = buf.range(rb-1,lb);
-        }
-
-        if (arr_index == arr_size -1)
-        	rb = 24 * N * ceil((row * col * 24 % 512) / 24.0*N);
-        else
-            rb = 512+rb-batch_rb;
-
-        ++arr_index;
-        lb =0;
+        outlier = (index-512);
+        buf.range(outlier-1, 0) = buf.range(index, 512);
+        index = outlier;
+        lb = 0;
     }
 }
 
@@ -358,12 +360,17 @@ void HCD(ap_int<512>* menInput, ap_int<512>* menOutput,  int row, int col)
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
 #pragma HLS INTERFACE m_axi port=menInput depth=500
-#pragma HLS INTERFACE m_axi port=menOutput depth=500
+
+//#pragma HLS INTERFACE m_axi port=menOutput depth=500
+#pragma HLS INTERFACE m_axi max_write_burst_length=512 latency=10 depth=1024 bundle=gmem0 port=menOutput
+//#pragma HLS INTERFACE s_axilite port = outTop bundle = control
+
 #pragma HLS INTERFACE s_axilite port=return
 
     int i;
     int j;
 
+    Stream_mem stream_mem;
     stream_t pstrmInput;
     stream_t stream_gray;
     stream_t stream_blur;
@@ -377,7 +384,9 @@ void HCD(ap_int<512>* menInput, ap_int<512>* menOutput,  int row, int col)
     stream_t pstrmOutput;
 
 #pragma HLS DATAFLOW
-    men2str(menInput, &pstrmInput, row, col);
+    getMem(menInput, &stream_mem, row, col);
+
+    men2str(&stream_mem, &pstrmInput, row, col);
 
     process_input(&pstrmInput, &stream_gray, row, col);
 
