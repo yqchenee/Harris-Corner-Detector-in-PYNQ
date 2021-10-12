@@ -303,7 +303,8 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
             ++arr_index;
 
             outlier = (index-512);
-            buf.range(outlier-1, 0) = buf.range(index, 512);
+            if (outlier)
+            	buf.range(outlier-1, 0) = buf.range(index, 512);
             index = outlier;
         }
         
@@ -344,12 +345,17 @@ void men2str(Stream_mem* stream_mem, stream_t* str, int row, int col)
                 out_vec[k] = buf.range(lb+23, lb);
                 lb += 24;
             }
+            str-> write(out_vec);
         }
-        str-> write(out_vec);
 
-        outlier = (index-lb);
-        buf.range(outlier-1, 0) = buf.range(index-1, lb);
-        index = outlier;
+
+        if (lb != index) {
+            outlier = (index-lb);
+            buf.range(outlier-1, 0) = buf.range(index-1, lb);
+            index = outlier;
+        } else {
+            index = 0;
+        }
         lb = 0;
     }
 }
