@@ -316,13 +316,13 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
 void getMem(ap_int<512>* menInput, Stream_mem* str, int row, int col)
 {
     int arr_size = ceil(row * col * 24.0 / 512);
-    for (i = 0; i < arr_size; ++i) {
+    for (int i = 0; i < arr_size; ++i) {
         #pragma HLS PIPELINE
-    	str.write(menInput[i]);
+    	str->write(menInput[i]);
     }
 }
 
-void men2str(Stream_mem* stream_mem, stream_t str, int row, int col)
+void men2str(Stream_mem* stream_mem, stream_t* str, int row, int col)
 {
     int arr_size = ceil(row * col * 24.0 / 512);
 
@@ -334,7 +334,7 @@ void men2str(Stream_mem* stream_mem, stream_t str, int row, int col)
     int lb = 0;
     for (i = 0; i < arr_size; ++i) {
         #pragma HLS PIPELINE
-    	buf.range(index+511, index) = stream_mem.read();
+    	buf.range(index+511, index) = stream_mem->read();
         index += 512;
 
         batch_size = index/24/N;
@@ -347,8 +347,8 @@ void men2str(Stream_mem* stream_mem, stream_t str, int row, int col)
         }
         str-> write(out_vec);
 
-        outlier = (index-512);
-        buf.range(outlier-1, 0) = buf.range(index, 512);
+        outlier = (index-lb);
+        buf.range(outlier-1, 0) = buf.range(index-1, lb);
         index = outlier;
         lb = 0;
     }
