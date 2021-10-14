@@ -27,19 +27,11 @@ P Gaussian_filter_1(W* window, int idx)
     for (i = 0; i < 3; i++) {
         for (j = 0; j < 3; j++) {
             int rc = idx+j;
-            // sum += op[i][j] * ((rc == max_col || rc == -1) ? P(0) : buffer-> getval(i, rc/N)[rc%N] );
             sum += op[i][j] * window-> getval(i, rc);
         }
     }
     pixel = P(sum);
     return pixel;
-}
-
-template<typename P, typename BUF>
-P getval_N(BUF* buffer, int i, int j)
-{
-#pragma HLS INLINE
-    return buffer-> getval(i, j/N)[j%N];
 }
 
 void process_input(stream_t* pstrmInput, stream_t* stream_gray, int row, int col)
@@ -86,7 +78,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
 
     #pragma HLS UNROLL factor=unroll_factor
     #pragma HLS pipeline
-    #pragma HLS dependence variable=buf type=inter dependent=false
+    #pragma HLS dependence variable=buf
 
             bool factor_N = (j % N == 0) ? 1 : 0;
 
@@ -139,6 +131,7 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
     PIXEL_vec   Ix, Iy;
     PIXEL_vec   Ixx, Iyy, Ixy;
     BUFFER_3    buf;
+    WINDOW      window;
 
     for (i = 0 ; i < row+1; i++) {
     #pragma HLS loop_tripcount max=257
@@ -150,24 +143,32 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
 
             bool factor_N = (j % N == 0) ? 1 : 0;
 
-            if (factor_N & (j < col)) {
+            if (factor_N) {
+                window.shift_right_N(N);
+
+                if (j < col) {
                     buf.shift_down(v_ind(j));
-                if (i < row) {
-                    input = stream_blur->read();
-                    buf.insert_top(input, v_ind(j));
+                    if (i < row) {
+                        input = stream_blur->read();
+                        buf.insert_top(input, v_ind(j));
+                    }
+
+                    for(int k = 0 ; k < N ; k++) {
+                        window.insert(buf.getval(0, v_ind(j))[k], 0, 2+k);
+                        window.insert(buf.getval(1, v_ind(j))[k], 1, 2+k);
+                        window.insert(buf.getval(2, v_ind(j))[k], 2, 2+k);
+                    }
                 }
             }
 
             if (j == 0 || i == 0) continue;
             int vec_index = v_ind_ind(j-1);
-            if (j == 1 | j == col)
-                Ix[vec_index] = zero;
-            else
-                Ix[vec_index] = getval_N<PIXEL, BUFFER_3>(&buf, 1, j-2) - getval_N<PIXEL, BUFFER_3>(&buf, 1, j);
-            if (i == 1 | i == row)
-                Iy[vec_index] = zero;
-            else
-                Iy[vec_index] = getval_N<PIXEL, BUFFER_3>(&buf, 2, j-1) - getval_N<PIXEL, BUFFER_3>(&buf, 0, j-1);
+            int window_index = v_ind_ind(j);
+
+            PIXEL tmp_x = window.getval(1, window_index) - window.getval(1, window_index+2);
+            Ix[vec_index] = (j == 1 | j == col) ? PIXEL(0) : tmp_x;
+            PIXEL tmp_y = window.getval(0, window_index+1) - window.getval(2, window_index+1);
+            Iy[vec_index] = (i == 1 | i == row) ? PIXEL(0) : tmp_y;
 
             Ixx[vec_index] = Ix[vec_index] * Ix[vec_index];
             Iyy[vec_index] = Iy[vec_index] * Iy[vec_index];
@@ -239,6 +240,7 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
     PIXEL_vec   input, output;
     PIXEL_vec   center_pixel;
     BUFFER_5    buf;
+    WINDOW_5    window;
 
     loop_i: for (int i = 0 ; i < row+2; i++) {
     #pragma HLS loop_tripcount max=258
@@ -248,31 +250,40 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
     #pragma HLS UNROLL factor=unroll_factor
     #pragma HLS pipeline
 
-            if ( (j % N == 0) & (j < col)) {
+            if (j % N == 0) {
+                window.shift_right_N(N);
+
+                if (j < col) {
                     buf.shift_down(v_ind(j));
-                if (i < row) {
-                    input = stream_response->read();
-                    buf.insert_top(input, v_ind(j));
+                    if (i < row) {
+                        input = stream_response->read();
+                        buf.insert_top(input, v_ind(j));
+                    }
+
+                    for(int k = 0 ; k < N ; k++) {
+                        window.insert(buf.getval(0, v_ind(j))[k], 0, 4+k);
+                        window.insert(buf.getval(1, v_ind(j))[k], 1, 4+k);
+                        window.insert(buf.getval(2, v_ind(j))[k], 2, 4+k);
+                        window.insert(buf.getval(3, v_ind(j))[k], 3, 4+k);
+                        window.insert(buf.getval(4, v_ind(j))[k], 4, 4+k);
+                    }
                 }
             }
 
             if (i < 2 || j < 2) continue;
 
             int vec_index = v_ind_ind(j-2);
+            int window_index = v_ind_ind(j);
 
-            center_pixel[vec_index] = getval_N<PIXEL, BUFFER_5>(&buf, 2, j-2);
-            output[vec_index] = 0;
-            if (center_pixel[vec_index] != 0 && i > 3 && j > 3 && i < row && j < col) {
-                output[vec_index] = 1;
-                loop_sj: for(int sj = 4; sj >= 0; sj--) {
-                    loop_si: for(int si = 0 ; si < 5; si++) {
-                        if(getval_N<PIXEL, BUFFER_5>(&buf, si, j-sj) > center_pixel[vec_index]) {
-                            output[vec_index] = 0;
-                            break;
-                        }
-                    }
+            center_pixel[vec_index] = window.getval(2, window_index + 2);
+            PIXEL tmp = 1;
+            for(int wi = 0 ; wi < 5 ; wi++) {
+                for(int wj = 0 ; wj < 5 ; wj++) {
+                    if(window.getval(wi, window_index + wj) > center_pixel[vec_index])
+                        tmp = 0;
                 }
             }
+            output[vec_index] = (center_pixel[vec_index] != 0 && i > 3 && j > 3 && i < row && j < col) ? tmp : PIXEL(0);
 
             if( ((j % N) == 1) ) {
                 pstrmOutput-> write(output);
@@ -281,89 +292,100 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
     }
 }
 
-void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
+void str2mem(stream_t* str, OUTPUT* memOutput,  int row, int col)
 {
-    int arr_size = ceil(row * col * 24.0 / 512);
-    int batch_count =0, lb = 0;
-    int batch_size = row * col / N;
     int arr_index = 0;
-
     ap_int<512+N> buf;
     PIXEL_vec in_vec;
 
-    while(batch_count < batch_size) {
-        while (lb < 512) {
-            in_vec = str->read();
-            for (int i = 0; i < N; ++i) {
-                buf.set_bit(lb, in_vec[i]);
-                ++lb;
-            }
-            ++batch_count;
+    int i, j, k, outlier;
+    int index = 0;
+    for (i = 0; i < row*col/N; ++i) {
+        #pragma HLS loop_tripcount max=32768
+        in_vec = str->read();
+
+        for (j = 0; j < N; ++j) {
+            #pragma HLS PIPELINE
+            buf.set_bit(index, in_vec[j]);
+            ++index;
         }
 
+        if (index >= 512) {
+            memOutput[arr_index] = buf.range(511,0);
+            ++arr_index;
+
+            if (index > 512)
+            	buf.range(index-513, 0) = buf.range(index, 512);
+            index -= 512;
+        }
+    }
+
+    if(index != 0)
         memOutput[arr_index] = buf.range(511,0);
+}
 
-        if (lb > 512) {
-            int outlier = (lb -512);
-            for (int i = 0; i < outlier; ++i) {
-                buf.set_bit(i, in_vec[i+N-outlier]);
-            }
-            lb = outlier;
-        }
-        else
-            lb = 0;
-        ++arr_index;
+void getMem(INPUT* menInput, Stream_mem* str, int row, int col)
+{
+    int arr_size = ceil(row * col * 24.0 / 512);
+    for (int i = 0; i < arr_size; ++i) {
+        #pragma HLS loop_tripcount max=3072
+        #pragma HLS PIPELINE
+    	str->write(menInput[i]);
     }
 }
 
-void men2str(ap_int<512>* menInput, stream_t* str, int row, int col)
+void men2str(Stream_mem* stream_mem, stream_t* str, int row, int col)
 {
     int arr_size = ceil(row * col * 24.0 / 512);
-    int batch_count = 0, arr_index =0, lb=0, rb=512, batch_rb =512;
-    int batch_size = row * col / N;
+
     ap_int<512+24*N> buf;
     PIXEL_vec out_vec;
 
-    buf.range(511,0) = menInput[0];
-    while(batch_count < batch_size) {
-    	buf.range(rb-1, rb-512) = menInput[arr_index];
-        batch_rb = rb - (rb % (24*N));
+    int i, j, k, outlier, batch_size;
+    int index = 0;
+    int lb = 0;
+    for (i = 0; i < arr_size; ++i) {
+        #pragma HLS loop_tripcount max=3072
+        #pragma HLS PIPELINE
+    	buf.range(index+511, index) = stream_mem->read();
+        index += 512;
 
-        while(lb < batch_rb) {
-            for(int j = 0 ; j < N ; ++j) {
-                out_vec[j] = buf.range(lb+23, lb);
+        batch_size = index/24/N;
+        for (j = 0; j < batch_size; ++j) {
+            #pragma HLS loop_tripcount max=12
+            for (k = 0; k < N; ++k) {
+                #pragma HLS PIPELINE
+                out_vec[k] = buf.range(lb+23, lb);
                 lb += 24;
             }
-            ++batch_count; 
             str-> write(out_vec);
         }
 
-        if (rb-batch_rb > 0) {
-        	buf.range(rb-batch_rb-1, 0) = buf.range(rb-1,lb);
+
+        if (lb != index) {
+            outlier = (index-lb);
+            buf.range(outlier-1, 0) = buf.range(index-1, lb);
+            index = outlier;
+        } else {
+            index = 0;
         }
-
-        if (arr_index == arr_size -1)
-        	rb = 24 * N * ceil((row * col * 24 % 512) / 24.0*N);
-        else
-            rb = 512+rb-batch_rb;
-
-        ++arr_index;
-        lb =0;
+        lb = 0;
     }
 }
 
 
-void HCD(ap_int<512>* menInput, ap_int<512>* menOutput,  int row, int col)
+void HCD(INPUT* menInput, OUTPUT* menOutput,  int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
-#pragma HLS INTERFACE m_axi port=menInput depth=500
-#pragma HLS INTERFACE m_axi port=menOutput depth=500
+#pragma HLS INTERFACE m_axi num_read_outstanding=1  max_read_burst_length=2  latency=100 depth=3072 port=menInput
+#pragma HLS INTERFACE m_axi latency=100 depth=512 port=menOutput
 #pragma HLS INTERFACE s_axilite port=return
 
     int i;
     int j;
 
+    Stream_mem stream_mem;
     stream_t pstrmInput;
     stream_t stream_gray;
     stream_t stream_blur;
@@ -377,7 +399,9 @@ void HCD(ap_int<512>* menInput, ap_int<512>* menOutput,  int row, int col)
     stream_t pstrmOutput;
 
 #pragma HLS DATAFLOW
-    men2str(menInput, &pstrmInput, row, col);
+    getMem(menInput, &stream_mem, row, col);
+
+    men2str(&stream_mem, &pstrmInput, row, col);
 
     process_input(&pstrmInput, &stream_gray, row, col);
 

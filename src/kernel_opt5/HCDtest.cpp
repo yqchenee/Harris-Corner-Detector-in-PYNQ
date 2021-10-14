@@ -43,8 +43,8 @@ int main () {
 
     int input_size = ceil(width * height * 24.0 / 512);
     int output_size = ceil(width * height /512.0);
-    ap_int<512> mem_input[input_size];
-    ap_int<512> mem_output[output_size];
+    INPUT mem_input[input_size];
+    OUTPUT mem_output[output_size];
     ap_int<512+24*N> buf;
 
     int batch_size = width * height / N;
