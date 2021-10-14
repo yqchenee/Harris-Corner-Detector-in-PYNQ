@@ -1,0 +1,72 @@
+INFO: [HLS 200-10] Running '/tools/Xilinx/Vitis_HLS/2020.2/bin/unwrapped/lnx64.o/vitis_hls'
+INFO: [HLS 200-10] For user 'tomchen' on host 'IRISLAB-79' (Linux_x86_64 version 4.18.0-301.1.el8.x86_64) on Fri Oct 15 01:06:41 CST 2021
+INFO: [HLS 200-10] On os "CentOS Stream release 8"
+INFO: [HLS 200-10] In directory '/nfs/home/tomchen/ACA_21S_final'
+Sourcing Tcl script '/nfs/home/tomchen/ACA_21S_final/tmp/solution1/cosim.tcl'
+INFO: [HLS 200-1510] Running: open_project tmp 
+INFO: [HLS 200-10] Opening project '/nfs/home/tomchen/ACA_21S_final/tmp'.
+INFO: [HLS 200-1510] Running: set_top HCD 
+INFO: [HLS 200-1510] Running: add_files src/kernel_opt4/ap_video.h 
+INFO: [HLS 200-10] Adding design file 'src/kernel_opt4/ap_video.h' to the project
+INFO: [HLS 200-1510] Running: add_files src/kernel_opt5/HCD.h 
+INFO: [HLS 200-10] Adding design file 'src/kernel_opt5/HCD.h' to the project
+INFO: [HLS 200-1510] Running: add_files src/kernel_opt5/HCD.cpp 
+INFO: [HLS 200-10] Adding design file 'src/kernel_opt5/HCD.cpp' to the project
+INFO: [HLS 200-1510] Running: add_files -tb src/kernel_opt5/HCDtest.cpp -cflags -Wno-unknown-pragmas -csimflags -Wno-unknown-pragmas 
+INFO: [HLS 200-10] Adding test bench file 'src/kernel_opt5/HCDtest.cpp' to the project
+INFO: [HLS 200-1510] Running: open_solution solution1 -flow_target vivado 
+INFO: [HLS 200-10] Opening solution '/nfs/home/tomchen/ACA_21S_final/tmp/solution1'.
+INFO: [SYN 201-201] Setting up clock 'default' with a period of 10ns.
+INFO: [HLS 200-10] Setting target device to 'xcu280-fsvh2892-2L-e'
+INFO: [HLS 200-1505] Using flow_target 'vivado'
+Resolution: For help on HLS 200-1505 see www.xilinx.com/cgi-bin/docs/rdoc?v=2020.2;t=hls+guidance;d=200-1505.html
+INFO: [HLS 200-1510] Running: set_part xcu280-fsvh2892-2L-e 
+INFO: [HLS 200-1510] Running: create_clock -period 10 -name default 
+INFO: [HLS 200-1510] Running: set_directive_top -name HCD HCD 
+INFO: [HLS 200-1510] Running: cosim_design 
+INFO: [COSIM 212-47] Using XSIM for RTL simulation.
+INFO: [COSIM 212-14] Instrumenting C test bench ...
+   Build using "/tools/Xilinx/Vitis_HLS/2020.2/tps/lnx64/gcc-6.2.0/bin/g++"
+   Compiling apatb_HCD_util.cpp
+   Compiling HCDtest.cpp_pre.cpp.tb.cpp
+   Compiling apatb_HCD.cpp
+   Compiling HCD.cpp_pre.cpp.tb.cpp
+   Compiling apatb_HCD_ir.ll
+   Generating cosim.tv.exe
+INFO: [COSIM 212-302] Starting C TB testing ... 
+(169,190) Your output: 1, Golden: 0
+(170,34) Your output: 1, Golden: 0
+(170,160) Your output: 1, Golden: 0
+(170,172) Your output: 1, Golden: 0
+(190,32) Your output: 0, Golden: 1
+(190,128) Your output: 0, Golden: 1
+(190,160) Your output: 0, Golden: 1
+(190,190) Your output: 0, Golden: 1
+(192,2) Your output: 0, Golden: 1
+(221,2) Your output: 0, Golden: 1
+(223,32) Your output: 0, Golden: 1
+(223,160) Your output: 0, Golden: 1
+(223,190) Your output: 0, Golden: 1
+(253,34) Your output: 0, Golden: 1
+(253,160) Your output: 0, Golden: 1
+(253,190) Your output: 0, Golden: 1
+total unmatch number :16
+The maximum depth reached by any of the 1 hls::stream() instances in the design is 32768
+The maximum depth reached by any of the 13 hls::stream() instances in the design is 0
+ERROR: [COSIM 212-359] Aborting co-simulation: C TB simulation failed, nonzero return value '1'.
+ERROR: [COSIM 212-320] C TB testing failed, stop generating test vectors. Please check C TB or re-run cosim.
+ERROR: [COSIM 212-5] *** C/RTL co-simulation file generation failed. ***
+ERROR: [COSIM 212-4] *** C/RTL co-simulation finished: FAIL ***
+INFO: [HLS 200-111] Finished Command cosim_design CPU user time: 14.96 seconds. CPU system time: 0.83 seconds. Elapsed time: 15.25 seconds; current allocated memory: 156.508 MB.
+command 'ap_source' returned error code
+    while executing
+"source /nfs/home/tomchen/ACA_21S_final/tmp/solution1/cosim.tcl"
+    invoked from within
+"hls::main /nfs/home/tomchen/ACA_21S_final/tmp/solution1/cosim.tcl"
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 hls::main {*}$newargs"
+    (procedure "hls_proc" line 16)
+    invoked from within
+"hls_proc [info nameofexecutable] $argv"
+Finished C/RTL cosimulation.

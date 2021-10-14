@@ -78,7 +78,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
 
     #pragma HLS UNROLL factor=unroll_factor
     #pragma HLS pipeline
-    #pragma HLS dependence variable=buf type=inter dependent=false
+    #pragma HLS dependence variable=buf
 
             bool factor_N = (j % N == 0) ? 1 : 0;
 
@@ -292,7 +292,7 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
     }
 }
 
-void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
+void str2mem(stream_t* str, OUTPUT* memOutput,  int row, int col)
 {
     int arr_index = 0;
     ap_int<512+N> buf;
@@ -301,6 +301,7 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
     int i, j, k, outlier;
     int index = 0;
     for (i = 0; i < row*col/N; ++i) {
+        #pragma HLS loop_tripcount max=32768
         in_vec = str->read();
 
         for (j = 0; j < N; ++j) {
@@ -318,17 +319,17 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
             	buf.range(outlier-1, 0) = buf.range(index, 512);
             index = outlier;
         }
-
     }
 
     if(index != 0)
         memOutput[arr_index] = buf.range(511,0);
 }
 
-void getMem(ap_int<512>* menInput, Stream_mem* str, int row, int col)
+void getMem(INPUT* menInput, Stream_mem* str, int row, int col)
 {
     int arr_size = ceil(row * col * 24.0 / 512);
     for (int i = 0; i < arr_size; ++i) {
+        #pragma HLS loop_tripcount max=3072
         #pragma HLS PIPELINE
     	str->write(menInput[i]);
     }
@@ -345,12 +346,14 @@ void men2str(Stream_mem* stream_mem, stream_t* str, int row, int col)
     int index = 0;
     int lb = 0;
     for (i = 0; i < arr_size; ++i) {
+        #pragma HLS loop_tripcount max=3072
         #pragma HLS PIPELINE
     	buf.range(index+511, index) = stream_mem->read();
         index += 512;
 
         batch_size = index/24/N;
         for (j = 0; j < batch_size; ++j) {
+            #pragma HLS loop_tripcount max=12
             for (k = 0; k < N; ++k) {
                 #pragma HLS PIPELINE
                 out_vec[k] = buf.range(lb+23, lb);
@@ -372,12 +375,12 @@ void men2str(Stream_mem* stream_mem, stream_t* str, int row, int col)
 }
 
 
-void HCD(ap_int<512>* menInput, ap_int<512>* menOutput,  int row, int col)
+void HCD(INPUT* menInput, OUTPUT* menOutput,  int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
-#pragma HLS INTERFACE m_axi max_read_burst_length=512  latency=100 depth=1024 port=menInput
-#pragma HLS INTERFACE m_axi max_write_burst_length=512 latency=100 depth=1024 port=menOutput
+#pragma HLS INTERFACE m_axi num_read_outstanding=1  max_read_burst_length=2  latency=500 depth=2048 port=menInput
+#pragma HLS INTERFACE m_axi latency=100 depth=512 port=menOutput
 #pragma HLS INTERFACE s_axilite port=return
 
     int i;
