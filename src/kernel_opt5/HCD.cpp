@@ -378,7 +378,7 @@ void HCD(INPUT* menInput, OUTPUT* menOutput,  int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
-#pragma HLS INTERFACE m_axi num_read_outstanding=1  max_read_burst_length=2  latency=500 depth=2048 port=menInput
+#pragma HLS INTERFACE m_axi num_read_outstanding=1  max_read_burst_length=2  latency=100 depth=3072 port=menInput
 #pragma HLS INTERFACE m_axi latency=100 depth=512 port=menOutput
 #pragma HLS INTERFACE s_axilite port=return
 
