@@ -302,10 +302,9 @@ void str2mem(stream_t* str, ap_int<512>* memOutput,  int row, int col)
             memOutput[arr_index] = buf.range(511,0);
             ++arr_index;
 
-            outlier = (index-512);
-            if (outlier)
-            	buf.range(outlier-1, 0) = buf.range(index, 512);
-            index = outlier;
+            if (index > 512)
+            	buf.range(index-513, 0) = buf.range(index, 512);
+            index -= 512;
         }
         
     }
