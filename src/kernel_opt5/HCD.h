@@ -22,6 +22,7 @@ typedef hls::stream<PIXEL_vec> stream_t;
 typedef hls::stream<ap_int<512>> Stream_mem;
 
 typedef ap_window<PIXEL, 3, N+2> WINDOW;
+typedef ap_window<PIXEL, 5, N+4> WINDOW_5;
 typedef ap_linebuffer<PIXEL_vec, 3, MAX_WIDTH/N> BUFFER_3;
 typedef ap_linebuffer<PIXEL_vec, 5, MAX_WIDTH/N> BUFFER_5;
 
