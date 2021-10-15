@@ -115,7 +115,7 @@ void getMem(INPUT* menInput, MEM_STREAM* str, int row, int col)
     for (int i = 0; i < arr_size; ++i) {
         #pragma HLS loop_tripcount max=3072
         #pragma HLS PIPELINE
-    	str->write(menInput[i]);
+        str->write(menInput[i]);
     }
 }
 
@@ -132,7 +132,7 @@ void men2str(MEM_STREAM* stream_mem, PIXEL_V_STREAM* str, int row, int col)
     for (i = 0; i < arr_size; ++i) {
         #pragma HLS loop_tripcount max=3072
         #pragma HLS PIPELINE
-    	buf.range(index+511, index) = stream_mem->read();
+        buf.range(index+511, index) = stream_mem->read();
         index += 512;
 
         batch_size = index/24/N;
@@ -196,9 +196,9 @@ void compute_dif(GPIXEL_V_STREAM* stream_blur, DGPIXEL_V_STREAM* stream_Ixx,
     int i;
     int j;
 
-    GPIXEL_VEC 	input;
+    GPIXEL_VEC   input;
     GPIXEL_VEC   Ix, Iy;
-    DGPIXEL_VEC   Ixx, Iyy, Ixy;
+    DGPIXEL_VEC  Ixx, Iyy, Ixy;
     BUFFER_3    buf;
     WINDOW      window;
 
@@ -295,9 +295,9 @@ void compute_det_trace(DGPIXEL_V_STREAM* stream_Sxx, DGPIXEL_V_STREAM* stream_Sy
             response[vec_index] = det[vec_index] - ap_fixed<12, 2>(0.05) * trace[vec_index];
 
             if (response[vec_index] > 6000000)
-            	output[vec_index] = DGPIXEL(response[vec_index]>>12);
+                output[vec_index] = DGPIXEL(response[vec_index]>>13);
             else
-            	output[vec_index] = DGPIXEL(0);
+                output[vec_index] = DGPIXEL(0);
 
             if((j % N) == (N-1)) {
                 stream_response->write(output);
@@ -387,7 +387,7 @@ void str2mem(BPIXEL_V_STREAM* str, OUTPUT* memOutput,  int row, int col)
             ++arr_index;
 
             if (index > 512)
-            	buf.range(index-513, 0) = buf.range(index, 512);
+                buf.range(index-513, 0) = buf.range(index, 512);
             index -= 512;
         }
     }
