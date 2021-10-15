@@ -1,9 +1,16 @@
 #include "HCD.h"
 #include "cmath"
 #include "math.h"
+#include <hls_stream.h>
+#include <hls_vector.h>
 
 
 const int unroll_factor = N;
+
+/**
+ * ##########################################################################################
+ * Utility Function
+ */
 
 /**
  * Gaussian filter with sigma 1
@@ -11,7 +18,6 @@ const int unroll_factor = N;
 template<typename P, typename W>
 P Gaussian_filter_1(W* window, int idx)
 {
-    // #pragma HLS function_instantiate variable=idx
     #pragma HLS INLINE
     char i,j;
     ap_fixed<27, 17> sum = 0;
@@ -33,6 +39,126 @@ P Gaussian_filter_1(W* window, int idx)
     pixel = P(sum);
     return pixel;
 }
+
+/**
+ * Image convolution
+ * **/
+template <typename ST, typename DT>
+void conv(ST* stream_in, ST* stream_out, int row, int col)
+{
+    int i;
+    int j;
+    hls::vector<DT, N> blur;
+    hls::vector<DT, N> input;
+    ap_window<DT, 3, N+2> window;
+    ap_linebuffer<hls::vector<DT, N>, 3, MAX_WIDTH/N> buf;
+
+    for (i = 0 ; i < row+1; i++) {
+    #pragma HLS loop_tripcount max=257
+        for (j = 0; j < col+1; j++) {
+    #pragma HLS loop_tripcount max=257
+
+    #pragma HLS UNROLL factor=unroll_factor
+    #pragma HLS pipeline
+    #pragma HLS dependence variable=buf
+
+            bool factor_N = (j % N == 0) ? 1 : 0;
+
+            if (factor_N) {
+                window.shift_right_N(N);
+
+                if (j < col) {
+                    buf.shift_down(v_ind(j));
+                    if (i < row) {
+                        input = stream_in->read();
+                        buf.insert_top(input, v_ind(j));
+                    }
+
+                    for(int k = 0 ; k < N ; k++) {
+                        window.insert(buf.getval(0, v_ind(j))[k], 0, 2+k);
+                        window.insert(buf.getval(1, v_ind(j))[k], 1, 2+k);
+                        window.insert(buf.getval(2, v_ind(j))[k], 2, 2+k);
+                    }
+                }
+
+                if(j == 0)
+                    window.rreflect();
+                else if (j == col)
+                    window.lreflect();
+
+                if (i == 1)
+                    window.dreflect();
+                else if (i == row)
+                    window.ureflect();
+            }
+
+            if(i == 0 || j == 0) continue;
+
+            blur[v_ind_ind(j-1)] = Gaussian_filter_1<DT, ap_window<DT, 3, N+2>> 
+                (&window, v_ind_ind(j));
+
+            if(factor_N) {
+                stream_out->write(blur);
+            }
+        }
+    }
+}
+
+/**
+ * ##########################################################################################
+ * Function in Dataflow
+ */
+
+void getMem(INPUT* menInput, MEM_STREAM* str, int row, int col)
+{
+    int arr_size = ceil(row * col * 24.0 / 512);
+    for (int i = 0; i < arr_size; ++i) {
+        #pragma HLS loop_tripcount max=3072
+        #pragma HLS PIPELINE
+    	str->write(menInput[i]);
+    }
+}
+
+void men2str(MEM_STREAM* stream_mem, PIXEL_V_STREAM* str, int row, int col)
+{
+    int arr_size = ceil(row * col * 24.0 / 512);
+
+    ap_int<512+24*N> buf;
+    PIXEL_VEC out_vec;
+
+    int i, j, k, outlier, batch_size;
+    int index = 0;
+    int lb = 0;
+    for (i = 0; i < arr_size; ++i) {
+        #pragma HLS loop_tripcount max=3072
+        #pragma HLS PIPELINE
+    	buf.range(index+511, index) = stream_mem->read();
+        index += 512;
+
+        batch_size = index/24/N;
+        for (j = 0; j < batch_size; ++j) {
+            #pragma HLS loop_tripcount max=12
+            for (k = 0; k < N; ++k) {
+                #pragma HLS PIPELINE
+                out_vec[k] = { buf.range(lb+23, lb+16),
+                    buf.range(lb+15, lb+8), buf.range(lb+7, lb)};
+                lb += 24;
+            }
+            str-> write(out_vec);
+        }
+
+
+        if (lb != index) {
+            outlier = (index-lb);
+            buf.range(outlier-1, 0) = buf.range(index-1, lb);
+            index = outlier;
+        } else {
+            index = 0;
+        }
+        lb = 0;
+    }
+}
+
 
 void process_input(PIXEL_V_STREAM* pstrmInput, GPIXEL_V_STREAM* stream_gray, int row, int col)
 {
@@ -61,72 +187,18 @@ void process_input(PIXEL_V_STREAM* pstrmInput, GPIXEL_V_STREAM* stream_gray, int
 
 void blur_img(GPIXEL_V_STREAM* stream_gray, GPIXEL_V_STREAM* stream_blur, int row, int col)
 {
-    int i;
-    int j;
-    GPIXEL_VEC   blur;
-    GPIXEL_VEC   input;
-    BUFFER_3    buf;
-    WINDOW      window;
-
-    for (i = 0 ; i < row+1; i++) {
-    #pragma HLS loop_tripcount max=257
-        for (j = 0; j < col+1; j++) {
-    #pragma HLS loop_tripcount max=257
-
-    #pragma HLS UNROLL factor=unroll_factor
-    #pragma HLS pipeline
-    #pragma HLS dependence variable=buf
-
-            bool factor_N = (j % N == 0) ? 1 : 0;
-
-            if (factor_N) {
-                window.shift_right_N(N);
-
-                if (j < col) {
-                    buf.shift_down(v_ind(j));
-                    if (i < row) {
-                        input = stream_gray->read();
-                        buf.insert_top(input, v_ind(j));
-                    }
-
-                    for(int k = 0 ; k < N ; k++) {
-                        window.insert(buf.getval(0, v_ind(j))[k], 0, 2+k);
-                        window.insert(buf.getval(1, v_ind(j))[k], 1, 2+k);
-                        window.insert(buf.getval(2, v_ind(j))[k], 2, 2+k);
-                    }
-                }
-
-                if(j == 0)
-                    window.rreflect();
-                else if (j == col)
-                    window.lreflect();
-
-                if (i == 1)
-                    window.dreflect();
-                else if (i == row)
-                    window.ureflect();
-            }
-
-            if(i == 0 || j == 0) continue;
-
-            blur[v_ind_ind(j-1)] = Gaussian_filter_1<GPIXEL, WINDOW>(&window, v_ind_ind(j));
-
-            if(factor_N) {
-                stream_blur->write(blur);
-            }
-        }
-    }
+    conv<GPIXEL_V_STREAM, GPIXEL>(stream_gray, stream_blur, row, col);
 }
 
-void compute_dif(GPIXEL_V_STREAM* stream_blur, GPIXEL_V_STREAM* stream_Ixx,
-        GPIXEL_V_STREAM* stream_Iyy, GPIXEL_V_STREAM* stream_Ixy, int row, int col)
+void compute_dif(GPIXEL_V_STREAM* stream_blur, DGPIXEL_V_STREAM* stream_Ixx,
+        DGPIXEL_V_STREAM* stream_Iyy, DGPIXEL_V_STREAM* stream_Ixy, int row, int col)
 {
     int i;
     int j;
 
     GPIXEL_VEC 	input;
     GPIXEL_VEC   Ix, Iy;
-    GPIXEL_VEC   Ixx, Iyy, Ixy;
+    DGPIXEL_VEC   Ixx, Iyy, Ixy;
     BUFFER_3    buf;
     WINDOW      window;
 
@@ -181,22 +253,22 @@ void compute_dif(GPIXEL_V_STREAM* stream_blur, GPIXEL_V_STREAM* stream_Ixx,
 }
 
 
-void blur_diff(GPIXEL_V_STREAM* stream_Ixx, GPIXEL_V_STREAM* stream_Iyy, GPIXEL_V_STREAM* stream_Ixy,
-        GPIXEL_V_STREAM* stream_Sxx, GPIXEL_V_STREAM* stream_Syy, GPIXEL_V_STREAM* stream_Sxy,
+void blur_diff(DGPIXEL_V_STREAM* stream_Ixx, DGPIXEL_V_STREAM* stream_Iyy, DGPIXEL_V_STREAM* stream_Ixy,
+        DGPIXEL_V_STREAM* stream_Sxx, DGPIXEL_V_STREAM* stream_Syy, DGPIXEL_V_STREAM* stream_Sxy,
         int row, int col)
 {
-    blur_img(stream_Ixx, stream_Sxx, row, col);
-    blur_img(stream_Iyy, stream_Syy, row, col);
-    blur_img(stream_Ixy, stream_Sxy, row, col);
+    conv<DGPIXEL_V_STREAM, DGPIXEL>(stream_Ixx, stream_Sxx, row, col);
+    conv<DGPIXEL_V_STREAM, DGPIXEL>(stream_Iyy, stream_Syy, row, col);
+    conv<DGPIXEL_V_STREAM, DGPIXEL>(stream_Ixy, stream_Sxy, row, col);
 }
 
-void compute_det_trace(GPIXEL_V_STREAM* stream_Sxx, GPIXEL_V_STREAM* stream_Syy, GPIXEL_V_STREAM* stream_Sxy,
-        GPIXEL_V_STREAM* stream_response, int row, int col)
+void compute_det_trace(DGPIXEL_V_STREAM* stream_Sxx, DGPIXEL_V_STREAM* stream_Syy, DGPIXEL_V_STREAM* stream_Sxy,
+        DGPIXEL_V_STREAM* stream_response, int row, int col)
 {
     int i;
     int j;
-    GPIXEL_VEC Sxx, Sxy, Syy;
-    GPIXEL_VEC output;
+    DGPIXEL_VEC Sxx, Sxy, Syy;
+    DGPIXEL_VEC output;
 
     hls::vector<ap_int<32>, N>  tmp, det, trace, response;
 
@@ -223,9 +295,9 @@ void compute_det_trace(GPIXEL_V_STREAM* stream_Sxx, GPIXEL_V_STREAM* stream_Syy,
             response[vec_index] = det[vec_index] - ap_fixed<12, 2>(0.05) * trace[vec_index];
 
             if (response[vec_index] > 6000000)
-            	output[vec_index] = GPIXEL(response[vec_index]>>12);
+            	output[vec_index] = DGPIXEL(response[vec_index]>>12);
             else
-            	output[vec_index] = GPIXEL(0);
+            	output[vec_index] = DGPIXEL(0);
 
             if((j % N) == (N-1)) {
                 stream_response->write(output);
@@ -234,12 +306,13 @@ void compute_det_trace(GPIXEL_V_STREAM* stream_Sxx, GPIXEL_V_STREAM* stream_Syy,
     }
 }
 
-void find_local_maxima(GPIXEL_V_STREAM* stream_response, GPIXEL_V_STREAM* pstrmOutput, int row, int col)
+void find_local_maxima(DGPIXEL_V_STREAM* stream_response, BPIXEL_V_STREAM* pstrmOutput, int row, int col)
 {
-    GPIXEL_VEC   input, output;
-    GPIXEL_VEC   center_pixel;
-    BUFFER_5    buf;
-    WINDOW_5    window;
+    DGPIXEL_VEC  input;
+    BPIXEL_VEC  output;
+    DGPIXEL_VEC  center_pixel;
+    DBUFFER_5    buf;
+    DWINDOW_5    window;
 
     loop_i: for (int i = 0 ; i < row+2; i++) {
     #pragma HLS loop_tripcount max=258
@@ -275,14 +348,14 @@ void find_local_maxima(GPIXEL_V_STREAM* stream_response, GPIXEL_V_STREAM* pstrmO
             int window_index = v_ind_ind(j);
 
             center_pixel[vec_index] = window.getval(2, window_index + 2);
-            GPIXEL tmp = 1;
+            BPIXEL tmp = 1;
             for(int wi = 0 ; wi < 5 ; wi++) {
                 for(int wj = 0 ; wj < 5 ; wj++) {
                     if(window.getval(wi, window_index + wj) > center_pixel[vec_index])
                         tmp = 0;
                 }
             }
-            output[vec_index] = (center_pixel[vec_index] != 0 && i > 3 && j > 3 && i < row && j < col) ? tmp : GPIXEL(0);
+            output[vec_index] = (center_pixel[vec_index] != 0 && i > 3 && j > 3 && i < row && j < col) ? tmp : BPIXEL(0);
 
             if( ((j % N) == 1) ) {
                 pstrmOutput-> write(output);
@@ -291,11 +364,11 @@ void find_local_maxima(GPIXEL_V_STREAM* stream_response, GPIXEL_V_STREAM* pstrmO
     }
 }
 
-void str2mem(GPIXEL_V_STREAM* str, OUTPUT* memOutput,  int row, int col)
+void str2mem(BPIXEL_V_STREAM* str, OUTPUT* memOutput,  int row, int col)
 {
     int arr_index = 0;
     ap_int<512+N> buf;
-    GPIXEL_VEC in_vec;
+    BPIXEL_VEC in_vec;
 
     int i, j, k, outlier;
     int index = 0;
@@ -323,63 +396,12 @@ void str2mem(GPIXEL_V_STREAM* str, OUTPUT* memOutput,  int row, int col)
         memOutput[arr_index] = buf.range(511,0);
 }
 
-void getMem(INPUT* menInput, MEM_STREAM* str, int row, int col)
-{
-    int arr_size = ceil(row * col * 24.0 / 512);
-    for (int i = 0; i < arr_size; ++i) {
-        #pragma HLS loop_tripcount max=3072
-        #pragma HLS PIPELINE
-    	str->write(menInput[i]);
-    }
-}
 
-void men2str(MEM_STREAM* stream_mem, PIXEL_V_STREAM* str, int row, int col)
-{
-    int arr_size = ceil(row * col * 24.0 / 512);
-
-    ap_int<512+24*N> buf;
-    PIXEL_VEC out_vec;
-
-    int i, j, k, outlier, batch_size;
-    int index = 0;
-    int lb = 0;
-    for (i = 0; i < arr_size; ++i) {
-        #pragma HLS loop_tripcount max=3072
-        #pragma HLS PIPELINE
-    	buf.range(index+511, index) = stream_mem->read();
-        index += 512;
-
-        batch_size = index/24/N;
-        for (j = 0; j < batch_size; ++j) {
-            #pragma HLS loop_tripcount max=12
-            for (k = 0; k < N; ++k) {
-                #pragma HLS PIPELINE
-                out_vec[k] = { buf.range(lb+23, lb+16),
-                    buf.range(lb+15, lb+8), buf.range(lb+7, lb)};
-//            	out_vec[k] = buf.range(lb+23, lb+16);
-                lb += 24;
-            }
-            str-> write(out_vec);
-        }
-
-
-        if (lb != index) {
-            outlier = (index-lb);
-            buf.range(outlier-1, 0) = buf.range(index-1, lb);
-            index = outlier;
-        } else {
-            index = 0;
-        }
-        lb = 0;
-    }
-}
-
-
-void HCD(INPUT* menInput, OUTPUT* menOutput,  int row, int col)
+void HCD(INPUT* memInput, OUTPUT* memOutput,  int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
-#pragma HLS INTERFACE m_axi num_read_outstanding=1  max_read_burst_length=2  latency=100 depth=3072 port=menInput
+#pragma HLS INTERFACE m_axi num_read_outstanding=1  max_read_burst_length=2  latency=100 depth=3072 port=memInput
 #pragma HLS INTERFACE m_axi latency=100 depth=512 port=menOutput
 #pragma HLS INTERFACE s_axilite port=return
 
@@ -390,20 +412,19 @@ void HCD(INPUT* menInput, OUTPUT* menOutput,  int row, int col)
     PIXEL_V_STREAM pstrmInput;
     GPIXEL_V_STREAM stream_gray;
     GPIXEL_V_STREAM stream_blur;
-    GPIXEL_V_STREAM stream_Ixx;
-    GPIXEL_V_STREAM stream_Ixy;
-    GPIXEL_V_STREAM stream_Iyy;
-    GPIXEL_V_STREAM stream_Sxx;
-    GPIXEL_V_STREAM stream_Sxy;
-    GPIXEL_V_STREAM stream_Syy;
-    GPIXEL_V_STREAM stream_response;
-    GPIXEL_V_STREAM pstrmOutput;
+    DGPIXEL_V_STREAM stream_Ixx;
+    DGPIXEL_V_STREAM stream_Ixy;
+    DGPIXEL_V_STREAM stream_Iyy;
+    DGPIXEL_V_STREAM stream_Sxx;
+    DGPIXEL_V_STREAM stream_Sxy;
+    DGPIXEL_V_STREAM stream_Syy;
+    DGPIXEL_V_STREAM stream_response;
+    BPIXEL_V_STREAM pstrmOutput;
 
 #pragma HLS DATAFLOW
-    getMem(menInput, &stream_mem, row, col);
-
+    // Step 0: get data from memory and convert to gray scale
+    getMem(memInput, &stream_mem, row, col);
     men2str(&stream_mem, &pstrmInput, row, col);
-
     process_input(&pstrmInput, &stream_gray, row, col);
 
     // Step 1: Smooth the image by Gaussian kernel
@@ -426,7 +447,8 @@ void HCD(INPUT* menInput, OUTPUT* menOutput,  int row, int col)
     // Step 7: Post processing
     find_local_maxima(&stream_response, &pstrmOutput, row, col);
 
-    str2mem(&pstrmOutput, menOutput, row, col);
+    // Step 8: write result to memory
+    str2mem(&pstrmOutput, memOutput, row, col);
 
     return;
 }
