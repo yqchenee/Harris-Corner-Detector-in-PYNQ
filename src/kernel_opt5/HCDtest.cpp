@@ -38,38 +38,35 @@ int main () {
         return 1;
     }
 
-    int input_size = ceil(width * height * 24.0 / 512);
+    int chunk_num = BUS_WIDTH / 24 / N;
+    int remain_chunk_num = (width * height * 24) % (chunk_num * 24 * N) / 24 /N;
+    int input_size = ceil(width * height * 1.0 / (chunk_num * N));
     int output_size = ceil(width * height /512.0);
+
     INPUT mem_input[input_size];
     OUTPUT mem_output[output_size];
-    ap_int<512+24*N> buf;
 
-    int batch_size = width * height / N;
-    int batch_count = 0;
-    int lb = 0;
-    int rb = 512;
-    int arr_index = 0;
+    ap_int<BUS_WIDTH> buf = 0;
 
-    while (batch_count < batch_size) {
-        while (lb < rb) {
-            // consume 24 * N bit
-            for(int k = 0 ; k < N ; ++k) {
-                for (int l = 0; l < 3; ++l) {
+    int i, j, k, l, lb=0;
+    for (i = 0; i < input_size-1; ++i) {
+    	if (i == input_size-1)
+    		chunk_num = remain_chunk_num;
+
+        // consume 24 * N * chunk_num bit
+        for (j = 0; j < chunk_num; ++j) {
+             // consume 24 * N bit
+            for (k = 0; k < N; ++k) {
+                // consume 24 bit
+                for (l = 0; l < 3; ++l) {
                     fin1 >> tmp;
                     buf.range(lb+7, lb) = tmp;
                     lb += 8;
                 }
             }
-            ++batch_count;
         }
-        mem_input[arr_index] = buf.range(511,0);
-        if (lb > rb) {
-            buf.range(lb-rb-1,0) = buf.range(lb-1,rb);
-            lb = lb - rb;
-        } else {
-            lb = 0;
-        }
-        arr_index++;
+        mem_input[i] = buf;
+        lb =0;
     }
 
     while(!fin2.eof()){

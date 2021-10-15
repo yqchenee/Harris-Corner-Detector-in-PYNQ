@@ -111,9 +111,11 @@ void conv(ST* stream_in, ST* stream_out, int row, int col)
 
 void getMem(INPUT* menInput, MEM_STREAM* str, int row, int col)
 {
-    int arr_size = ceil(row * col * 24.0 / 512);
+    int chunk_num = CHUNK_NUM;
+    int arr_size = ceil(row * col * 1.0 / (chunk_num * N));
+
     for (int i = 0; i < arr_size; ++i) {
-        #pragma HLS loop_tripcount max=3072
+        #pragma HLS loop_tripcount max=3277
         #pragma HLS PIPELINE
         str->write(menInput[i]);
     }
@@ -121,23 +123,24 @@ void getMem(INPUT* menInput, MEM_STREAM* str, int row, int col)
 
 void men2str(MEM_STREAM* stream_mem, PIXEL_V_STREAM* str, int row, int col)
 {
-    int arr_size = ceil(row * col * 24.0 / 512);
+    int chunk_num = CHUNK_NUM;
+    int remain_chunk_num = (row * col * 24) % (chunk_num * 24 * N) / 24 / N;
+    int arr_size = ceil(row * col * 1.0 / (chunk_num * N));
+    int i, j, k, lb=0;
 
-    ap_int<512+24*N> buf;
+    ap_int<BUS_WIDTH> buf;
     PIXEL_VEC out_vec;
 
-    int i, j, k, outlier, batch_size;
-    int index = 0;
-    int lb = 0;
     for (i = 0; i < arr_size; ++i) {
-        #pragma HLS loop_tripcount max=3072
+		#pragma HLS loop_tripcount max=3277
         #pragma HLS PIPELINE
-        buf.range(index+511, index) = stream_mem->read();
-        index += 512;
+        buf = stream_mem->read();
 
-        batch_size = index/24/N;
-        for (j = 0; j < batch_size; ++j) {
-            #pragma HLS loop_tripcount max=12
+        if (i == arr_size-1 && remain_chunk_num !=0)
+        	chunk_num = remain_chunk_num;
+
+        for (j = 0; j < chunk_num; ++j) {
+			#pragma HLS loop_tripcount max=10
             for (k = 0; k < N; ++k) {
                 #pragma HLS PIPELINE
                 out_vec[k] = { buf.range(lb+23, lb+16),
@@ -146,16 +149,7 @@ void men2str(MEM_STREAM* stream_mem, PIXEL_V_STREAM* str, int row, int col)
             }
             str-> write(out_vec);
         }
-
-
-        if (lb != index) {
-            outlier = (index-lb);
-            buf.range(outlier-1, 0) = buf.range(index-1, lb);
-            index = outlier;
-        } else {
-            index = 0;
-        }
-        lb = 0;
+        lb =0;
     }
 }
 
@@ -366,34 +360,32 @@ void find_local_maxima(DGPIXEL_V_STREAM* stream_response, BPIXEL_V_STREAM* pstrm
 
 void str2mem(BPIXEL_V_STREAM* str, OUTPUT* memOutput,  int row, int col)
 {
-    int arr_index = 0;
-    ap_int<512+N> buf;
+    ap_int<BUS_WIDTH> buf; // assume bus width can be devided by N;
     BPIXEL_VEC in_vec;
 
-    int i, j, k, outlier;
-    int index = 0;
-    for (i = 0; i < row*col/N; ++i) {
-        #pragma HLS loop_tripcount max=32768
-        in_vec = str->read();
+    int chunk_num = CHUNK_NUM1;
+    int remain_chunk_num = (row * col % BUS_WIDTH) / N; // assume result is integer !
+    int arr_size = ceil(row * col * 1.0 / BUS_WIDTH);
+    int i, j, k, index=0;
 
-        for (j = 0; j < N; ++j) {
-            #pragma HLS PIPELINE
-            buf.set_bit(index, in_vec[j]);
-            ++index;
+    for (i = 0; i < arr_size; ++i) {
+		#pragma HLS loop_tripcount max=128
+        #pragma HLS PIPELINE
+        if (i == arr_size-1 && remain_chunk_num!= 0)
+        	chunk_num = remain_chunk_num;
+
+        for (j = 0; j < chunk_num; ++j) {
+			#pragma HLS loop_tripcount max=256
+        	in_vec = str->read();
+            for (k = 0; k < N; ++k) {
+                #pragma HLS PIPELINE
+                buf.set_bit(index, in_vec[k]);
+                ++index;
+            }
         }
-
-        if (index >= 512) {
-            memOutput[arr_index] = buf.range(511,0);
-            ++arr_index;
-
-            if (index > 512)
-                buf.range(index-513, 0) = buf.range(index, 512);
-            index -= 512;
-        }
+        index = 0;
+        memOutput[i] = buf.range(BUS_WIDTH-1,0);
     }
-
-    if(index != 0)
-        memOutput[arr_index] = buf.range(511,0);
 }
 
 
@@ -401,7 +393,7 @@ void HCD(INPUT* memInput, OUTPUT* memOutput,  int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
-#pragma HLS INTERFACE m_axi num_read_outstanding=1  max_read_burst_length=2  latency=100 depth=3072 port=memInput
+#pragma HLS INTERFACE m_axi num_read_outstanding=1  max_read_burst_length=2  latency=100 depth=3277 port=memInput
 #pragma HLS INTERFACE m_axi latency=100 depth=512 port=menOutput
 #pragma HLS INTERFACE s_axilite port=return
 

@@ -6,9 +6,6 @@
 #include <ap_fixed.h>
 #include "ap_video.h"
 
-#define MAX_WIDTH 1920
-#define MAX_HEIGHT 1080
-
 typedef unsigned int uint32_t;
 
 // top function input, output
@@ -16,6 +13,11 @@ typedef unsigned int uint32_t;
 #define N 2
 #define v_ind(i) (i)/N
 #define v_ind_ind(i) (i)%N
+#define MAX_WIDTH 1920
+#define MAX_HEIGHT 1080
+#define BUS_WIDTH 512
+#define CHUNK_NUM BUS_WIDTH / 24 / N
+#define CHUNK_NUM1 BUS_WIDTH / N
 
 struct PIXEL {ap_uint<8> r, b, g;};
 typedef ap_uint<1> BPIXEL; // binary pixel
