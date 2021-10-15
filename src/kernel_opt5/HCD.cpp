@@ -94,7 +94,7 @@ void conv(ST* stream_in, ST* stream_out, int row, int col)
 
             if(i == 0 || j == 0) continue;
 
-            blur[v_ind_ind(j-1)] = Gaussian_filter_1<DT, ap_window<DT, 3, N+2>> 
+            blur[v_ind_ind(j-1)] = Gaussian_filter_1<DT, ap_window<DT, 3, N+2>>
                 (&window, v_ind_ind(j));
 
             if(factor_N) {
@@ -131,20 +131,21 @@ void men2str(MEM_STREAM* stream_mem, PIXEL_V_STREAM* str, int row, int col)
     int lb = 0;
     for (i = 0; i < arr_size; ++i) {
         #pragma HLS loop_tripcount max=3072
-        #pragma HLS PIPELINE
-    	buf.range(index+511, index) = stream_mem->read();
+
+        buf.range(index+511, index) = stream_mem->read();
         index += 512;
 
         batch_size = index/24/N;
         for (j = 0; j < batch_size; ++j) {
             #pragma HLS loop_tripcount max=12
+            #pragma HLS PIPELINE
             for (k = 0; k < N; ++k) {
-                #pragma HLS PIPELINE
-                out_vec[k] = { buf.range(lb+23, lb+16),
-                    buf.range(lb+15, lb+8), buf.range(lb+7, lb)};
-                lb += 24;
+                int offset = lb + 24 * k;
+                out_vec[k] = { buf.range(offset+23, offset+16),
+                    buf.range(offset+15, offset+8), buf.range(offset+7, offset)};
             }
             str-> write(out_vec);
+            lb += 24 * N;
         }
 
 
@@ -168,13 +169,10 @@ void process_input(PIXEL_V_STREAM* pstrmInput, GPIXEL_V_STREAM* stream_gray, int
     GPIXEL_VEC input_gray_pix;
 
     for (i = 0; i < row; ++i) {
-    #pragma HLS loop_tripcount max=256
-        for (j = 0; j < col; ++j) {
-    #pragma HLS loop_tripcount max=256
-
-    #pragma HLS pipeline
-    #pragma HLS UNROLL factor=unroll_factor skip_exit_check
-            if (j % N != 0) continue;
+        #pragma HLS loop_tripcount max=256
+        for (j = 0; j < col/N; ++j) {
+            #pragma HLS loop_tripcount max=256/unroll_factor
+            #pragma HLS pipeline
 
             input = pstrmInput->read();
             for(int k = 0 ; k < N ; ++k) {
@@ -367,33 +365,30 @@ void find_local_maxima(DGPIXEL_V_STREAM* stream_response, BPIXEL_V_STREAM* pstrm
 void str2mem(BPIXEL_V_STREAM* str, OUTPUT* memOutput,  int row, int col)
 {
     int arr_index = 0;
-    ap_int<512+N> buf;
+    ap_int<512> buf;
     BPIXEL_VEC in_vec;
 
     int i, j, k, outlier;
     int index = 0;
     for (i = 0; i < row*col/N; ++i) {
         #pragma HLS loop_tripcount max=32768
+        #pragma HLS PIPELINE
         in_vec = str->read();
 
         for (j = 0; j < N; ++j) {
-            #pragma HLS PIPELINE
             buf.set_bit(index, in_vec[j]);
             ++index;
         }
 
         if (index >= 512) {
-            memOutput[arr_index] = buf.range(511,0);
+            memOutput[arr_index] = buf;
             ++arr_index;
-
-            if (index > 512)
-            	buf.range(index-513, 0) = buf.range(index, 512);
-            index -= 512;
+            index = 0;
         }
     }
 
     if(index != 0)
-        memOutput[arr_index] = buf.range(511,0);
+        memOutput[arr_index] = buf.range(index, 0);
 }
 
 

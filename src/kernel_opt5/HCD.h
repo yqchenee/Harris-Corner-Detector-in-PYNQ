@@ -35,7 +35,7 @@ typedef hls::stream<GPIXEL_VEC> GPIXEL_V_STREAM;
 typedef hls::stream<DGPIXEL_VEC> DGPIXEL_V_STREAM;
 typedef hls::stream<ap_int<512>> MEM_STREAM;
 
-// sliding window 
+// sliding window
 typedef ap_window<GPIXEL, 3, N+2> WINDOW;
 typedef ap_window<GPIXEL, 5, N+4> WINDOW_5;
 typedef ap_window<DGPIXEL, 3, N+2> DWINDOW;
