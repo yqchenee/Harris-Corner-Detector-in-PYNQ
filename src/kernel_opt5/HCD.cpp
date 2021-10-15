@@ -60,7 +60,6 @@ void conv(ST* stream_in, ST* stream_out, int row, int col)
 
     #pragma HLS UNROLL factor=unroll_factor
     #pragma HLS pipeline
-    #pragma HLS dependence variable=buf
 
             bool factor_N = (j % N == 0) ? 1 : 0;
 
@@ -109,57 +108,50 @@ void conv(ST* stream_in, ST* stream_out, int row, int col)
  * Function in Dataflow
  */
 
-void getMem(INPUT* menInput, MEM_STREAM* str, int row, int col)
+void getMem(INPUT* menInput, MEM_STREAM* str_men, int row, int col)
 {
-    int arr_size = ceil(row * col * 24.0 / 512);
-    for (int i = 0; i < arr_size; ++i) {
-        #pragma HLS loop_tripcount max=3072
-        #pragma HLS PIPELINE
-    	str->write(menInput[i]);
-    }
-}
+    int out_batch_size = ceil(row * col * 24 / DATA_WIDTH / BURST_SIZE); // 1024
+    DATA out_men;
 
-void men2str(MEM_STREAM* stream_mem, PIXEL_V_STREAM* str, int row, int col)
-{
-    int arr_size = ceil(row * col * 24.0 / 512);
-
-    ap_int<512+24*N> buf;
-    PIXEL_VEC out_vec;
-
-    int i, j, k, outlier, batch_size;
-    int index = 0;
-    int lb = 0;
-    for (i = 0; i < arr_size; ++i) {
-        #pragma HLS loop_tripcount max=3072
-
-        buf.range(index+511, index) = stream_mem->read();
-        index += 512;
-
-        batch_size = index/24/N;
-        for (j = 0; j < batch_size; ++j) {
-            #pragma HLS loop_tripcount max=12
+    for (int i = 0 ; i < out_batch_size ; i++) {
+        #pragma HLS loop_tripcount max=1024
+        for(int j = 0 ; j < BURST_SIZE ; j++) {
+            #pragma HLS loop_tripcount max=3
             #pragma HLS PIPELINE
-            for (k = 0; k < N; ++k) {
-                int offset = lb + 24 * k;
-                out_vec[k] = { buf.range(offset+23, offset+16),
-                    buf.range(offset+15, offset+8), buf.range(offset+7, offset)};
-            }
-            str-> write(out_vec);
-            lb += 24 * N;
+            int offset = DATA_WIDTH*j;
+            out_men.range(offset+DATA_WIDTH-1, offset) = menInput[j];
         }
-
-
-        if (lb != index) {
-            outlier = (index-lb);
-            buf.range(outlier-1, 0) = buf.range(index-1, lb);
-            index = outlier;
-        } else {
-            index = 0;
-        }
-        lb = 0;
+        str_men-> write(out_men);
+        menInput += BURST_SIZE;
     }
 }
 
+void men2gray_str(MEM_STREAM* stream_mem, GPIXEL_V_STREAM* stream_gray, int row, int col)
+{
+    int in_batch_size = ceil(row * col * 24 / DATA_WIDTH / BURST_SIZE); // 1024
+    int len = BURST_SIZE * DATA_WIDTH / 24 / N;  // 32
+    DATA        buf;   // BURST_SIZE * DATA_WIDTH = 3 * 512 = 1536 bytes
+    GPIXEL_VEC  out_gray_vec;
+
+    for (int i = 0; i < in_batch_size; ++i) {
+        #pragma HLS loop_tripcount max=1024
+        #pragma HLS PIPELINE
+
+        buf = stream_mem->read();
+        int offset = 0;
+
+        for(int j = 0 ; j < len ; j++) {
+        #pragma HLS loop_tripcount max=32
+            for(int k = 0 ; k < N ; k++) {
+                int offset_k = offset + 24 * k;
+                out_gray_vec[k] = (buf.range(offset_k+23, offset_k+16) +
+                    buf.range(offset_k+15, offset_k+8) + buf.range(offset_k+7, offset_k)) / 3;
+            }
+            offset += N * 24;
+            stream_gray-> write(out_gray_vec);
+        }
+    }
+}
 
 void process_input(PIXEL_V_STREAM* pstrmInput, GPIXEL_V_STREAM* stream_gray, int row, int col)
 {
@@ -194,9 +186,9 @@ void compute_dif(GPIXEL_V_STREAM* stream_blur, DGPIXEL_V_STREAM* stream_Ixx,
     int i;
     int j;
 
-    GPIXEL_VEC 	input;
+    GPIXEL_VEC 	 input;
     GPIXEL_VEC   Ix, Iy;
-    DGPIXEL_VEC   Ixx, Iyy, Ixy;
+    DGPIXEL_VEC  Ixx, Iyy, Ixy;
     BUFFER_3    buf;
     WINDOW      window;
 
@@ -396,7 +388,7 @@ void HCD(INPUT* memInput, OUTPUT* memOutput,  int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
-#pragma HLS INTERFACE m_axi num_read_outstanding=1  max_read_burst_length=2  latency=100 depth=3072 port=memInput
+#pragma HLS INTERFACE m_axi num_read_outstanding=1  max_read_burst_length=3  latency=100 depth=3072 port=memInput
 #pragma HLS INTERFACE m_axi latency=100 depth=512 port=menOutput
 #pragma HLS INTERFACE s_axilite port=return
 
@@ -419,8 +411,8 @@ void HCD(INPUT* memInput, OUTPUT* memOutput,  int row, int col)
 #pragma HLS DATAFLOW
     // Step 0: get data from memory and convert to gray scale
     getMem(memInput, &stream_mem, row, col);
-    men2str(&stream_mem, &pstrmInput, row, col);
-    process_input(&pstrmInput, &stream_gray, row, col);
+    men2gray_str(&stream_mem, &stream_gray, row, col);
+    // process_input(&pstrmInput, &stream_gray, row, col);
 
     // Step 1: Smooth the image by Gaussian kernel
     blur_img(&stream_gray, &stream_blur, row, col);
