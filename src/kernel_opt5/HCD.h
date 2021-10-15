@@ -16,19 +16,24 @@ typedef unsigned int uint32_t;
 #define N 2
 #define v_ind(i) (i)/N
 #define v_ind_ind(i) (i)%N
-typedef ap_int<32> PIXEL;
-typedef hls::vector<PIXEL, N> PIXEL_vec;
-typedef hls::stream<PIXEL_vec> stream_t;
-typedef hls::stream<ap_int<512>> Stream_mem;
+
+struct PIXEL {ap_uint<8> r, g, b;}
+typedef hls::vector<PIXEL, N> PIXEL_VEC;
+typedef ap_uint<10> GPIXEL;
+typedef hls::vector<GPIXEL, N> GPIXEL_VEC;
+
+typedef hls::stream<PIXEL_VEC> PIXEL_V_STREAM;
+typedef hls::stream<GPIXEL_VEC> GPIXEL_V_STREAM;
+typedef hls::stream<ap_int<512>> MEM_STREAM;
 
 typedef ap_int<512> INPUT;
 typedef ap_int<512> OUTPUT;
 
 
-typedef ap_window<PIXEL, 3, N+2> WINDOW;
-typedef ap_window<PIXEL, 5, N+4> WINDOW_5;
-typedef ap_linebuffer<PIXEL_vec, 3, MAX_WIDTH/N> BUFFER_3;
-typedef ap_linebuffer<PIXEL_vec, 5, MAX_WIDTH/N> BUFFER_5;
+typedef ap_window<GPIXEL, 3, N+2> WINDOW;
+typedef ap_window<GPIXEL, 5, N+4> WINDOW_5;
+typedef ap_linebuffer<GPIXEL_VEC, 3, MAX_WIDTH/N> BUFFER_3;
+typedef ap_linebuffer<GPIXEL_VEC, 5, MAX_WIDTH/N> BUFFER_5;
 
 void HCD(
     INPUT* menInput,
