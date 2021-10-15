@@ -17,9 +17,9 @@ typedef unsigned int uint32_t;
 #define v_ind(i) (i)/N
 #define v_ind_ind(i) (i)%N
 
-struct PIXEL {ap_uint<8> r, g, b;}
+struct PIXEL {ap_uint<8> r, g, b;};
 typedef hls::vector<PIXEL, N> PIXEL_VEC;
-typedef ap_uint<10> GPIXEL;
+typedef ap_int<20> GPIXEL;
 typedef hls::vector<GPIXEL, N> GPIXEL_VEC;
 
 typedef hls::stream<PIXEL_VEC> PIXEL_V_STREAM;
@@ -28,7 +28,6 @@ typedef hls::stream<ap_int<512>> MEM_STREAM;
 
 typedef ap_int<512> INPUT;
 typedef ap_int<512> OUTPUT;
-
 
 typedef ap_window<GPIXEL, 3, N+2> WINDOW;
 typedef ap_window<GPIXEL, 5, N+4> WINDOW_5;

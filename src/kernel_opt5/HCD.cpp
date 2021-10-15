@@ -54,13 +54,12 @@ void process_input(PIXEL_V_STREAM* pstrmInput, GPIXEL_V_STREAM* stream_gray, int
             for(int k = 0 ; k < N ; ++k) {
                 input_gray_pix[k] = (input[k].r + input[k].g + input[k].b)/3;
             }
-            input = input_gray_pix;
-            stream_gray->write(input);
+            stream_gray->write(input_gray_pix);
         }
     }
 }
 
-void blur_img(PIXEL_V_STREAM* stream_gray, PIXEL_V_STREAM* stream_blur, int row, int col)
+void blur_img(GPIXEL_V_STREAM* stream_gray, GPIXEL_V_STREAM* stream_blur, int row, int col)
 {
     int i;
     int j;
@@ -110,7 +109,7 @@ void blur_img(PIXEL_V_STREAM* stream_gray, PIXEL_V_STREAM* stream_blur, int row,
 
             if(i == 0 || j == 0) continue;
 
-            blur[v_ind_ind(j-1)] = Gaussian_filter_1<PIXEL, WINDOW>(&window, v_ind_ind(j));
+            blur[v_ind_ind(j-1)] = Gaussian_filter_1<GPIXEL, WINDOW>(&window, v_ind_ind(j));
 
             if(factor_N) {
                 stream_blur->write(blur);
@@ -119,12 +118,12 @@ void blur_img(PIXEL_V_STREAM* stream_gray, PIXEL_V_STREAM* stream_blur, int row,
     }
 }
 
-void compute_dif(PIXEL_V_STREAM* stream_blur, PIXEL_V_STREAM* stream_Ixx,
-        PIXEL_V_STREAM* stream_Iyy, PIXEL_V_STREAM* stream_Ixy, int row, int col)
+void compute_dif(GPIXEL_V_STREAM* stream_blur, GPIXEL_V_STREAM* stream_Ixx,
+        GPIXEL_V_STREAM* stream_Iyy, GPIXEL_V_STREAM* stream_Ixy, int row, int col)
 {
     int i;
     int j;
-    PIXEL       zero = 0;
+
     GPIXEL_VEC 	input;
     GPIXEL_VEC   Ix, Iy;
     GPIXEL_VEC   Ixx, Iyy, Ixy;
@@ -163,10 +162,10 @@ void compute_dif(PIXEL_V_STREAM* stream_blur, PIXEL_V_STREAM* stream_Ixx,
             int vec_index = v_ind_ind(j-1);
             int window_index = v_ind_ind(j);
 
-            PIXEL tmp_x = window.getval(1, window_index) - window.getval(1, window_index+2);
-            Ix[vec_index] = (j == 1 | j == col) ? PIXEL(0) : tmp_x;
-            PIXEL tmp_y = window.getval(0, window_index+1) - window.getval(2, window_index+1);
-            Iy[vec_index] = (i == 1 | i == row) ? PIXEL(0) : tmp_y;
+            GPIXEL tmp_x = window.getval(1, window_index) - window.getval(1, window_index+2);
+            Ix[vec_index] = (j == 1 | j == col) ? GPIXEL(0) : tmp_x;
+            GPIXEL tmp_y = window.getval(0, window_index+1) - window.getval(2, window_index+1);
+            Iy[vec_index] = (i == 1 | i == row) ? GPIXEL(0) : tmp_y;
 
             Ixx[vec_index] = Ix[vec_index] * Ix[vec_index];
             Iyy[vec_index] = Iy[vec_index] * Iy[vec_index];
@@ -182,8 +181,8 @@ void compute_dif(PIXEL_V_STREAM* stream_blur, PIXEL_V_STREAM* stream_Ixx,
 }
 
 
-void blur_diff(PIXEL_V_STREAM* stream_Ixx, PIXEL_V_STREAM* stream_Iyy, PIXEL_V_STREAM* stream_Ixy,
-        PIXEL_V_STREAM* stream_Sxx, PIXEL_V_STREAM* stream_Syy, PIXEL_V_STREAM* stream_Sxy,
+void blur_diff(GPIXEL_V_STREAM* stream_Ixx, GPIXEL_V_STREAM* stream_Iyy, GPIXEL_V_STREAM* stream_Ixy,
+        GPIXEL_V_STREAM* stream_Sxx, GPIXEL_V_STREAM* stream_Syy, GPIXEL_V_STREAM* stream_Sxy,
         int row, int col)
 {
     blur_img(stream_Ixx, stream_Sxx, row, col);
@@ -191,14 +190,16 @@ void blur_diff(PIXEL_V_STREAM* stream_Ixx, PIXEL_V_STREAM* stream_Iyy, PIXEL_V_S
     blur_img(stream_Ixy, stream_Sxy, row, col);
 }
 
-void compute_det_trace(PIXEL_V_STREAM* stream_Sxx, PIXEL_V_STREAM* stream_Syy, PIXEL_V_STREAM* stream_Sxy,
-        PIXEL_V_STREAM* stream_response, int row, int col)
+void compute_det_trace(GPIXEL_V_STREAM* stream_Sxx, GPIXEL_V_STREAM* stream_Syy, GPIXEL_V_STREAM* stream_Sxy,
+        GPIXEL_V_STREAM* stream_response, int row, int col)
 {
     int i;
     int j;
     GPIXEL_VEC Sxx, Sxy, Syy;
-    GPIXEL_VEC tmp;
-    GPIXEL_VEC det, trace, response;
+    GPIXEL_VEC output;
+
+    hls::vector<ap_int<32>, N>  tmp, det, trace, response;
+
     for (i = 0; i < row; ++i) {
     #pragma HLS loop_tripcount max=256
         for (j = 0; j < col; ++j) {
@@ -222,18 +223,18 @@ void compute_det_trace(PIXEL_V_STREAM* stream_Sxx, PIXEL_V_STREAM* stream_Syy, P
             response[vec_index] = det[vec_index] - ap_fixed<12, 2>(0.05) * trace[vec_index];
 
             if (response[vec_index] > 6000000)
-                response[vec_index] = PIXEL(response[vec_index]);
+            	output[vec_index] = GPIXEL(response[vec_index]>>12);
             else
-                response[vec_index] = PIXEL(0);
+            	output[vec_index] = GPIXEL(0);
 
             if((j % N) == (N-1)) {
-                stream_response->write(response);
+                stream_response->write(output);
             }
         }
     }
 }
 
-void find_local_maxima(PIXEL_V_STREAM* stream_response, PIXEL_V_STREAM* pstrmOutput, int row, int col)
+void find_local_maxima(GPIXEL_V_STREAM* stream_response, GPIXEL_V_STREAM* pstrmOutput, int row, int col)
 {
     GPIXEL_VEC   input, output;
     GPIXEL_VEC   center_pixel;
@@ -274,14 +275,14 @@ void find_local_maxima(PIXEL_V_STREAM* stream_response, PIXEL_V_STREAM* pstrmOut
             int window_index = v_ind_ind(j);
 
             center_pixel[vec_index] = window.getval(2, window_index + 2);
-            PIXEL tmp = 1;
+            GPIXEL tmp = 1;
             for(int wi = 0 ; wi < 5 ; wi++) {
                 for(int wj = 0 ; wj < 5 ; wj++) {
                     if(window.getval(wi, window_index + wj) > center_pixel[vec_index])
                         tmp = 0;
                 }
             }
-            output[vec_index] = (center_pixel[vec_index] != 0 && i > 3 && j > 3 && i < row && j < col) ? tmp : PIXEL(0);
+            output[vec_index] = (center_pixel[vec_index] != 0 && i > 3 && j > 3 && i < row && j < col) ? tmp : GPIXEL(0);
 
             if( ((j % N) == 1) ) {
                 pstrmOutput-> write(output);
@@ -290,7 +291,7 @@ void find_local_maxima(PIXEL_V_STREAM* stream_response, PIXEL_V_STREAM* pstrmOut
     }
 }
 
-void str2mem(PIXEL_V_STREAM* str, OUTPUT* memOutput,  int row, int col)
+void str2mem(GPIXEL_V_STREAM* str, OUTPUT* memOutput,  int row, int col)
 {
     int arr_index = 0;
     ap_int<512+N> buf;
@@ -353,8 +354,9 @@ void men2str(MEM_STREAM* stream_mem, PIXEL_V_STREAM* str, int row, int col)
             #pragma HLS loop_tripcount max=12
             for (k = 0; k < N; ++k) {
                 #pragma HLS PIPELINE
-                out_vec[k] = { buf.range(lb+23, lb+16), 
+                out_vec[k] = { buf.range(lb+23, lb+16),
                     buf.range(lb+15, lb+8), buf.range(lb+7, lb)};
+//            	out_vec[k] = buf.range(lb+23, lb+16);
                 lb += 24;
             }
             str-> write(out_vec);
