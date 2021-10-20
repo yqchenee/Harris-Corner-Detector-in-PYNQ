@@ -12,8 +12,6 @@
 
 typedef unsigned int uint32_t;
 
-// top function input, output
-// data[0:7]:G, data[8:15]:B, data[16:23]:R
 #define N 2
 #define v_ind(i) (i)/N
 #define v_ind_ind(i) (i)%N

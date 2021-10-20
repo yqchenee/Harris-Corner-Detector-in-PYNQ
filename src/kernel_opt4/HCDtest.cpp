@@ -6,8 +6,8 @@
 using namespace std;
 
 //Arrays to send and receive data from the accelerator
-static PIXEL_vec input;
-static PIXEL_vec output;
+static PIXEL_VEC input;
+static PIXEL_VEC output;
 static int gold_output[MAX_HEIGHT][MAX_WIDTH];
 
 int main () {
@@ -15,8 +15,8 @@ int main () {
     int tmp;
     unsigned int width, height;
 
-    stream_t strmInput;
-    stream_t strmOutput;
+    PIXEL_V_STREAM strmInput;
+    PIXEL_V_STREAM strmOutput;
 
     //read file
     fstream fin1;

@@ -10,7 +10,6 @@ const int unroll_factor = N;
 template<typename P, typename W>
 P Gaussian_filter_1(W* window, int idx)
 {
-    // #pragma HLS function_instantiate variable=idx
     #pragma HLS INLINE
     char i,j;
     ap_fixed<27, 17> sum = 0;
@@ -33,42 +32,15 @@ P Gaussian_filter_1(W* window, int idx)
     return pixel;
 }
 
-void process_input(stream_t* pstrmInput, stream_t* stream_gray, int row, int col)
+template <typename ST, typename DT>
+void conv(ST* stream_in, ST* stream_out, int row, int col)
 {
     int i;
     int j;
-    PIXEL_vec input ;
-    PIXEL_vec input_gray_pix;
-
-    for (i = 0; i < row; ++i) {
-    #pragma HLS loop_tripcount max=256
-        for (j = 0; j < col; ++j) {
-    #pragma HLS loop_tripcount max=256
-
-    #pragma HLS pipeline
-    #pragma HLS UNROLL factor=unroll_factor skip_exit_check
-            if (j % N != 0) continue;
-
-            input = pstrmInput->read();
-            for(int k = 0 ; k < N ; ++k) {
-                input_gray_pix[k] = (input[k].range(7,0)
-                        + input[k].range(15,8)
-                        + input[k].range(23,16))/3;
-            }
-            input = input_gray_pix;
-            stream_gray->write(input);
-        }
-    }
-}
-
-void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
-{
-    int i;
-    int j;
-    PIXEL_vec   blur;
-    PIXEL_vec   input;
-    BUFFER_3    buf;
-    WINDOW      window;
+    hls::vector<DT, N> blur;
+    hls::vector<DT, N> input;
+    ap_window<DT, 3, N+2> window;
+    ap_linebuffer<hls::vector<DT, N>, 3, MAX_WIDTH/N> buf;
 
     for (i = 0 ; i < row+1; i++) {
     #pragma HLS loop_tripcount max=257
@@ -77,7 +49,6 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
 
     #pragma HLS UNROLL factor=unroll_factor
     #pragma HLS pipeline
-    #pragma HLS dependence variable=buf type=inter dependent=false
 
             bool factor_N = (j % N == 0) ? 1 : 0;
 
@@ -87,7 +58,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
                 if (j < col) {
                     buf.shift_down(v_ind(j));
                     if (i < row) {
-                        input = stream_gray->read();
+                        input = stream_in->read();
                         buf.insert_top(input, v_ind(j));
                     }
 
@@ -98,7 +69,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
                     }
                 }
 
-                if(j == 0)  // fit to factor_N
+                if(j == 0)
                     window.rreflect();
                 else if (j == col)
                     window.lreflect();
@@ -111,24 +82,54 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
 
             if(i == 0 || j == 0) continue;
 
-            blur[v_ind_ind(j-1)] = Gaussian_filter_1<PIXEL, WINDOW>(&window, v_ind_ind(j));
+            blur[v_ind_ind(j-1)] = Gaussian_filter_1<DT, ap_window<DT, 3, N+2>>
+                (&window, v_ind_ind(j));
 
             if(factor_N) {
-                stream_blur->write(blur);
+                stream_out->write(blur);
             }
         }
     }
 }
 
-void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
-        stream_t* stream_Iyy, stream_t* stream_Ixy, int row, int col)
+void process_input(PIXEL_V_STREAM* pstrmInput, GPIXEL_V_STREAM* stream_gray, int row, int col)
 {
     int i;
     int j;
-    PIXEL       zero = 0;
-    PIXEL_vec 	input;
-    PIXEL_vec   Ix, Iy;
-    PIXEL_vec   Ixx, Iyy, Ixy;
+    PIXEL_VEC input ;
+    GPIXEL_VEC input_gray_pix;
+
+    for (i = 0; i < row; ++i) {
+    #pragma HLS loop_tripcount max=256
+        for (j = 0; j < col/N; ++j) {
+        #pragma HLS loop_tripcount max=256/unroll_factor
+        #pragma HLS pipeline
+
+            input = pstrmInput->read();
+            for(int k = 0 ; k < N ; ++k) {
+                input_gray_pix[k] = (input[k].range(7,0)    // r
+                        + input[k].range(15,8)              // g
+                        + input[k].range(23,16))/3;         // b
+            }
+            stream_gray->write(input_gray_pix);
+        }
+    }
+}
+
+void blur_img(GPIXEL_V_STREAM* stream_gray, GPIXEL_V_STREAM* stream_blur, int row, int col)
+{
+    conv<GPIXEL_V_STREAM, GPIXEL>(stream_gray, stream_blur, row, col);
+}
+
+void compute_dif(GPIXEL_V_STREAM* stream_blur, DGPIXEL_V_STREAM* stream_Ixx,
+        DGPIXEL_V_STREAM* stream_Iyy, DGPIXEL_V_STREAM* stream_Ixy, int row, int col)
+{
+    int i;
+    int j;
+
+    GPIXEL_VEC 	 input;
+    GPIXEL_VEC   Ix, Iy;
+    DGPIXEL_VEC  Ixx, Iyy, Ixy;
     BUFFER_3    buf;
     WINDOW      window;
 
@@ -164,10 +165,10 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
             int vec_index = v_ind_ind(j-1);
             int window_index = v_ind_ind(j);
 
-            PIXEL tmp_x = window.getval(1, window_index) - window.getval(1, window_index+2);
-            Ix[vec_index] = (j == 1 | j == col) ? PIXEL(0) : tmp_x;
-            PIXEL tmp_y = window.getval(0, window_index+1) - window.getval(2, window_index+1);
-            Iy[vec_index] = (i == 1 | i == row) ? PIXEL(0) : tmp_y;
+            GPIXEL tmp_x = window.getval(1, window_index) - window.getval(1, window_index+2);
+            Ix[vec_index] = (j == 1 | j == col) ? GPIXEL(0) : tmp_x;
+            GPIXEL tmp_y = window.getval(0, window_index+1) - window.getval(2, window_index+1);
+            Iy[vec_index] = (i == 1 | i == row) ? GPIXEL(0) : tmp_y;
 
             Ixx[vec_index] = Ix[vec_index] * Ix[vec_index];
             Iyy[vec_index] = Iy[vec_index] * Iy[vec_index];
@@ -183,23 +184,25 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
 }
 
 
-void blur_diff(stream_t* stream_Ixx, stream_t* stream_Iyy, stream_t* stream_Ixy,
-        stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* stream_Sxy,
+void blur_diff(DGPIXEL_V_STREAM* stream_Ixx, DGPIXEL_V_STREAM* stream_Iyy, DGPIXEL_V_STREAM* stream_Ixy,
+        DGPIXEL_V_STREAM* stream_Sxx, DGPIXEL_V_STREAM* stream_Syy, DGPIXEL_V_STREAM* stream_Sxy,
         int row, int col)
 {
-    blur_img(stream_Ixx, stream_Sxx, row, col);
-    blur_img(stream_Iyy, stream_Syy, row, col);
-    blur_img(stream_Ixy, stream_Sxy, row, col);
+    conv<DGPIXEL_V_STREAM, DGPIXEL>(stream_Ixx, stream_Sxx, row, col);
+    conv<DGPIXEL_V_STREAM, DGPIXEL>(stream_Iyy, stream_Syy, row, col);
+    conv<DGPIXEL_V_STREAM, DGPIXEL>(stream_Ixy, stream_Sxy, row, col);
 }
 
-void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* stream_Sxy,
-        stream_t* stream_response, int row, int col)
+void compute_det_trace(DGPIXEL_V_STREAM* stream_Sxx, DGPIXEL_V_STREAM* stream_Syy, DGPIXEL_V_STREAM* stream_Sxy,
+        DGPIXEL_V_STREAM* stream_response, int row, int col)
 {
     int i;
     int j;
-    PIXEL_vec Sxx, Sxy, Syy;
-    PIXEL_vec tmp;
-    PIXEL_vec det, trace, response;
+    DGPIXEL_VEC Sxx, Sxy, Syy;
+    DGPIXEL_VEC output;
+
+    hls::vector<ap_int<32>, N>  tmp, det, trace, response;
+
     for (i = 0; i < row; ++i) {
     #pragma HLS loop_tripcount max=256
         for (j = 0; j < col; ++j) {
@@ -223,23 +226,24 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
             response[vec_index] = det[vec_index] - ap_fixed<12, 2>(0.05) * trace[vec_index];
 
             if (response[vec_index] > 6000000)
-                response[vec_index] = PIXEL(response[vec_index]);
+            	output[vec_index] = DGPIXEL(response[vec_index]>>12);
             else
-                response[vec_index] = PIXEL(0);
+            	output[vec_index] = DGPIXEL(0);
 
             if((j % N) == (N-1)) {
-                stream_response->write(response);
+                stream_response->write(output);
             }
         }
     }
 }
 
-void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row, int col)
+void find_local_maxima(DGPIXEL_V_STREAM* stream_response, PIXEL_V_STREAM* pstrmOutput, int row, int col)
 {
-    PIXEL_vec   input, output;
-    PIXEL_vec   center_pixel;
-    BUFFER_5    buf;
-    WINDOW_5    window;
+    DGPIXEL_VEC  input;
+    PIXEL_VEC    output;
+    DGPIXEL_VEC  center_pixel;
+    DBUFFER_5    buf;
+    DWINDOW_5    window;
 
     loop_i: for (int i = 0 ; i < row+2; i++) {
     #pragma HLS loop_tripcount max=258
@@ -291,7 +295,7 @@ void find_local_maxima(stream_t* stream_response, stream_t* pstrmOutput, int row
     }
 }
 
-void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, int row, int col)
+void HCD(PIXEL_V_STREAM* pstrmInput, PIXEL_V_STREAM* pstrmOutput, int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
@@ -302,15 +306,15 @@ void HCD(stream_t* pstrmInput, stream_t* pstrmOutput, int row, int col)
     int i;
     int j;
 
-    stream_t stream_gray;
-    stream_t stream_blur;
-    stream_t stream_Ixx;
-    stream_t stream_Ixy;
-    stream_t stream_Iyy;
-    stream_t stream_Sxx;
-    stream_t stream_Sxy;
-    stream_t stream_Syy;
-    stream_t stream_response;
+    GPIXEL_V_STREAM stream_gray;
+    GPIXEL_V_STREAM stream_blur;
+    DGPIXEL_V_STREAM stream_Ixx;
+    DGPIXEL_V_STREAM stream_Ixy;
+    DGPIXEL_V_STREAM stream_Iyy;
+    DGPIXEL_V_STREAM stream_Sxx;
+    DGPIXEL_V_STREAM stream_Sxy;
+    DGPIXEL_V_STREAM stream_Syy;
+    DGPIXEL_V_STREAM stream_response;
 
 #pragma HLS DATAFLOW
     process_input(pstrmInput, &stream_gray, row, col);
