@@ -163,7 +163,7 @@ void blur_diff(DGPIXEL_STREAM* stream_Ixx, DGPIXEL_STREAM* stream_Iyy, DGPIXEL_S
     conv<DGPIXEL_STREAM, DGPIXEL>(stream_Ixy, stream_Sxy, row, col);
 }
 
-void compute_det_trace(DGPIXEL_STREAM* stream_Sxx, DGPIXEL_STREAM* stream_Syy, DGPIXEL_STREAM* stream_Sxy,
+void compute_response(DGPIXEL_STREAM* stream_Sxx, DGPIXEL_STREAM* stream_Syy, DGPIXEL_STREAM* stream_Sxy,
         DGPIXEL_STREAM* stream_response, int row, int col)
 {
     int i;
@@ -277,7 +277,7 @@ void HCD(stream_io* pstrmInput, stream_io* pstrmOutput, int row, int col)
 
     // Step 5: Compute the det and trace of matrix M (M = [[Sxx, Sxy], [Sxy, Syy]])
     // Step 6: Compute the response of the detector by det/(trace+1e-12)
-    compute_det_trace(&stream_Sxx, &stream_Syy, &stream_Sxy, &stream_response, row, col);
+    compute_response(&stream_Sxx, &stream_Syy, &stream_Sxy, &stream_response, row, col);
 
     // Step 7: Post processing
     find_local_maxima(&stream_response, pstrmOutput, row, col);
