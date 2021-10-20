@@ -27,16 +27,18 @@ P Gaussian_filter_1(W* window)
     return pixel;
 }
 
-void process_input(stream_io* pstrmInput, stream_t* stream_gray, int32_t row, int32_t col)
+void process_input(stream_io* pstrmInput, stream_t* stream_gray, int row, int col)
 {
-    int32_t i;
-    int32_t j;
+    int i;
+    int j;
     PIXEL input ;
     PIXEL input_gray_pix;
     for (i = 0; i < row; ++i) {
     #pragma HLS loop_tripcount max=256
+    #pragma HLS PIPELINE off
         for (j = 0; j < col; ++j) {
     #pragma HLS loop_tripcount max=256
+    #pragma HLS PIPELINE off
             input = pstrmInput->read().data;
             input_gray_pix = (input.range(7,0)
                     + input.range(15,8)
@@ -49,10 +51,10 @@ void process_input(stream_io* pstrmInput, stream_t* stream_gray, int32_t row, in
     }
 }
 
-void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t col)
+void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
 {
-    int32_t i;
-    int32_t j;
+    int i;
+    int j;
     PIXEL   tmp, blur;
     PIXEL input;
     WINDOW  window;
@@ -60,8 +62,10 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
 
     for (i = 0 ; i < row+1; i++) {
     #pragma HLS loop_tripcount max=257
+    #pragma HLS PIPELINE off
         for (j = 0; j < col+1; j++) {
     #pragma HLS loop_tripcount max=257
+    #pragma HLS PIPELINE off
             if (j < col)
                 buf.shift_up(j);
 
@@ -102,10 +106,10 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int32_t row, int32_t
 }
 
 void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
-        stream_t* stream_Iyy, stream_t* stream_Ixy, int32_t row, int32_t col)
+        stream_t* stream_Iyy, stream_t* stream_Ixy, int row, int col)
 {
-    int32_t i;
-    int32_t j;
+    int i;
+    int j;
     PIXEL    Ix, Iy, zero = 0;
     PIXEL    tmp, Ixx, Iyy, Ixy;
     BUFFER_3   blur_buf;
@@ -113,8 +117,10 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
 
     for (i = 0 ; i < row+1; i++) {
     #pragma HLS loop_tripcount max=257
+    #pragma HLS PIPELINE off
         for (j = 0; j < col+1; j++) {
     #pragma HLS loop_tripcount max=257
+    #pragma HLS PIPELINE off
             if (j < col)
                 blur_buf.shift_up(j);
 
@@ -155,7 +161,7 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
 
 void blur_diff(stream_t* stream_Ixx, stream_t* stream_Iyy, stream_t* stream_Ixy,
         stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* stream_Sxy,
-        int32_t row, int32_t col)
+        int row, int col)
 {
     blur_img(stream_Ixx, stream_Sxx, row, col);
     blur_img(stream_Iyy, stream_Syy, row, col);
@@ -163,10 +169,10 @@ void blur_diff(stream_t* stream_Ixx, stream_t* stream_Iyy, stream_t* stream_Ixy,
 }
 
 void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* stream_Sxy,
-        stream_t* stream_response, int32_t row, int32_t col)
+        stream_t* stream_response, int row, int col)
 {
-    int32_t i;
-    int32_t j;
+    int i;
+    int j;
     PIXEL input[3];
     PIXEL Sxx, Sxy, Syy;
     PIXEL det;
@@ -177,8 +183,10 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
 
     for (i = 0; i < row; ++i) {
     #pragma HLS loop_tripcount max=256
+    #pragma HLS PIPELINE off
         for (j = 0; j < col; ++j) {
     #pragma HLS loop_tripcount max=256
+    #pragma HLS PIPELINE off
             input[0] = stream_Sxx->read();
             input[1] = stream_Sxy->read();
             input[2] = stream_Syy->read();
@@ -205,19 +213,21 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
     }
 }
 
-void find_local_maxima(stream_t* stream_response, stream_io* pstrmOutput, int32_t row, int32_t col)
+void find_local_maxima(stream_t* stream_response, stream_io* pstrmOutput, int row, int col)
 {
     AXI_PIXEL   input;
     PIXEL       center_pixel;
     BUFFER_5    response_buf;
-    int32_t     i, j;
-    int32_t     si, sj;
-    int32_t     l_bound, r_bound;
+    int     i, j;
+    int     si, sj;
+    int     l_bound, r_bound;
 
     for (i = 0 ; i < row+2; i++) {
     #pragma HLS loop_tripcount max=258
+    #pragma HLS PIPELINE off
         for (j = 0; j < col+2; j++) {
     #pragma HLS loop_tripcount max=258
+    #pragma HLS PIPELINE off
             if (j < col)
                 response_buf.shift_up(j);
 
@@ -247,7 +257,7 @@ void find_local_maxima(stream_t* stream_response, stream_io* pstrmOutput, int32_
     }
 }
 
-void HCD(stream_io* pstrmInput, stream_io* pstrmOutput, reg32_t row, reg32_t col)
+void HCD(stream_io* pstrmInput, stream_io* pstrmOutput, int row, int col)
 {
 #pragma HLS INTERFACE s_axilite port=row
 #pragma HLS INTERFACE s_axilite port=col
@@ -255,8 +265,8 @@ void HCD(stream_io* pstrmInput, stream_io* pstrmOutput, reg32_t row, reg32_t col
 #pragma HLS INTERFACE axis register both port=pstrmInput
 #pragma HLS INTERFACE s_axilite port=return
 
-    int32_t i;
-    int32_t j;
+    int i;
+    int j;
 
     stream_t stream_gray;
     stream_t stream_blur;

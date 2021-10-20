@@ -72,6 +72,7 @@ template <typename T, int LROW, int LCOL>
   T M[LROW][LCOL];
 
   ap_linebuffer(){
+#pragma HLS ARRAY_PARTITION variable=M dim=1 complete
 };
   ~ap_linebuffer(){};
   void shift_up(int col);
@@ -90,8 +91,10 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_linebuffer<T,LROW,LCOL>::shift_up(int col)
 {
+#pragma HLS inline
   int i;
   for(i = LROW-1; i > 0; i--){
+#pragma HLS unroll
     M[i][col] = M[i-1][col];
   }
 }
@@ -103,17 +106,21 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_linebuffer<T,LROW,LCOL>::shift_down(int col)
 {
+#pragma HLS inline
   int i;
   for(i = 0; i < LROW-1; i++){
+#pragma HLS unroll
     M[i][col] = M[i+1][col];
   }
 }
 template <typename T, int LROW, int LCOL>
   void ap_linebuffer<T,LROW,LCOL>::shift_down()
 {
+#pragma HLS inline
   int i, j;
   for(i = 0; i < LROW-1; i++){
     for(j = 0; j < LCOL; j++){
+      #pragma HLS unroll
           M[i][j] = M[i+1][j];
     }
   }
@@ -126,6 +133,7 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_linebuffer<T,LROW,LCOL>::insert_bottom(T value, int col)
 {
+#pragma HLS inline
 
   M[0][col] = value;
 }
@@ -137,6 +145,7 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_linebuffer<T,LROW,LCOL>::insert_top(T value, int col)
 {
+#pragma HLS inline
 
   M[LROW-1][col] = value;
 }
@@ -144,6 +153,7 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_linebuffer<T,LROW,LCOL>::insert_at(T value, int row, int col)
 {
+#pragma HLS inline
 
     M[row][col] = value;
 }
@@ -154,6 +164,7 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   T ap_linebuffer<T,LROW,LCOL>::getval(int RowIndex,int ColIndex)
 {
+#pragma HLS inline
 
   T return_value;
   return_value = M[RowIndex][ColIndex];
@@ -167,6 +178,7 @@ template <typename T, int LROW, int LCOL>
   T M[LROW][LCOL];
 
   ap_window(){
+#pragma HLS ARRAY_PARTITION variable=M dim=0 complete
 };
   ~ap_window(){};
   void shift_right();
@@ -188,9 +200,12 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_window<T,LROW,LCOL>::shift_right()
 {
+#pragma HLS inline
   int i, j;
   for(i = 0; i < LROW; i++){
+#pragma HLS unroll
     for(j=0; j < LCOL-1; j++){
+#pragma HLS unroll
       M[i][j] = M[i][j+1];
     }
   }
@@ -203,9 +218,12 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_window<T,LROW,LCOL>::shift_left()
 {
+#pragma HLS inline
   int i, j;
   for(i = 0; i < LROW; i++){
+#pragma HLS unroll
     for(j=LCOL-1; j > 0; j--){
+#pragma HLS unroll
       M[i][j] = M[i][j-1];
     }
   }
@@ -218,9 +236,12 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_window<T,LROW,LCOL>::shift_up()
 {
+#pragma HLS inline
   int i, j;
   for(i = LROW-1; i > 0; i--){
+#pragma HLS unroll
     for(j=0; j < LCOL; j++){
+#pragma HLS unroll
       M[i][j] = M[i-1][j];
     }
   }
@@ -233,9 +254,12 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_window<T,LROW,LCOL>::shift_down()
 {
+#pragma HLS inline
   int i, j;
   for(i = 0; i < LROW-1; i++){
+#pragma HLS unroll
     for(j=0; j < LCOL; j++){
+#pragma HLS unroll
       M[i][j] = M[i+1][j];
     }
   }
@@ -247,14 +271,17 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_window<T,LROW,LCOL>::insert(T value, int row, int col)
 {
+#pragma HLS inline
   M[row][col] = value;
 }
 
 template <typename T, int LROW, int LCOL>
   void ap_window<T,LROW,LCOL>::rreflect()
 {
+#pragma HLS inline
   int i;
   for(i = 0; i < LROW; i++){
+#pragma HLS unroll
       M[i][0] = M[i][LCOL-1];
   }
 }
@@ -262,8 +289,10 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_window<T,LROW,LCOL>::lreflect()
 {
+#pragma HLS inline
   int i;
   for(i = 0; i < LROW; i++){
+#pragma HLS unroll
       M[i][LCOL-1] = M[i][0];
   }
 }
@@ -271,8 +300,10 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_window<T,LROW,LCOL>::ureflect()
 {
+#pragma HLS inline
   int j;
   for(j = 0; j < LCOL; j++){
+#pragma HLS unroll
       M[LROW-1][j] = M[0][j];
   }
 }
@@ -280,8 +311,10 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   void ap_window<T,LROW,LCOL>::dreflect()
 {
+#pragma HLS inline
   int j;
   for(j = 0; j < LCOL; j++){
+#pragma HLS unroll
       M[0][j] = M[LROW-1][j];
   }
 }
@@ -292,6 +325,7 @@ template <typename T, int LROW, int LCOL>
 template <typename T, int LROW, int LCOL>
   T ap_window<T,LROW,LCOL>::getval(int RowIndex, int ColIndex)
 {
+#pragma HLS inline
   T return_value;
   return_value = M[RowIndex][ColIndex];
   return return_value;
