@@ -8,26 +8,34 @@
 #define MAX_WIDTH 1920
 #define MAX_HEIGHT 1080
 
-typedef ap_int<32> PIXEL;
 
 // data[0:7]:G, data[8:15]:B, data[16:23]:R
-typedef ap_axiu<32,1,1,1> AXI_PIXEL;
-typedef ap_uint<32> reg32_t;
-typedef signed int int32_t;
-typedef unsigned int uint32_t;
-
 // top function input, output
+typedef ap_axiu<32,1,1,1> AXI_PIXEL;
 typedef hls::stream<AXI_PIXEL> stream_io;
-typedef hls::stream<PIXEL> stream_t;
-typedef ap_window<PIXEL,3,3> WINDOW;
-typedef ap_linebuffer<PIXEL, 3, MAX_WIDTH> BUFFER_3;
-typedef ap_linebuffer<PIXEL, 5, MAX_WIDTH> BUFFER_5;
+
+// pixel
+typedef ap_int<32> PIXEL;
+typedef ap_uint<1> BPIXEL; // binary pixel
+typedef ap_int<10> GPIXEL; // gray pixel
+typedef ap_int<20> DGPIXEL; // double gray pixel
+
+// pixel vector stream
+typedef hls::stream<PIXEL> PIXEL_STREAM;
+typedef hls::stream<BPIXEL> BPIXEL_STREAM;
+typedef hls::stream<GPIXEL> GPIXEL_STREAM;
+typedef hls::stream<DGPIXEL> DGPIXEL_STREAM;
+
+// window and line buffer used in image processing
+typedef ap_linebuffer<GPIXEL, 3, MAX_WIDTH> BUFFER_3;
+typedef ap_linebuffer<DGPIXEL, 3, MAX_WIDTH> DBUFFER_3;
+typedef ap_linebuffer<DGPIXEL, 5, MAX_WIDTH> DBUFFER_5;
 
 void HCD(
     stream_io* pstrmInput,
     stream_io* pstrmOutput,
-    reg32_t row,
-    reg32_t col
+    int row,
+    int col
 );
 
 #endif
