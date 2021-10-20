@@ -259,9 +259,6 @@ void HCD(stream_io* pstrmInput, stream_io* pstrmOutput, int row, int col)
 #pragma HLS INTERFACE axis register both port=pstrmInput
 #pragma HLS INTERFACE s_axilite port=return
 
-    int i;
-    int j;
-
     stream_t stream_gray;
     stream_t stream_blur;
     stream_t stream_Ixx;

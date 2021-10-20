@@ -303,9 +303,6 @@ void HCD(PIXEL_V_STREAM* pstrmInput, PIXEL_V_STREAM* pstrmOutput, int row, int c
 #pragma HLS INTERFACE axis register both port=pstrmInput
 #pragma HLS INTERFACE s_axilite port=return
 
-    int i;
-    int j;
-
     GPIXEL_V_STREAM stream_gray;
     GPIXEL_V_STREAM stream_blur;
     DGPIXEL_V_STREAM stream_Ixx;

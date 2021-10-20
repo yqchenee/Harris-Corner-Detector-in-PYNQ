@@ -392,9 +392,6 @@ void HCD(INPUT* memInput, OUTPUT* memOutput,  int row, int col)
 #pragma HLS INTERFACE m_axi latency=100 depth=512 port=menOutput
 #pragma HLS INTERFACE s_axilite port=return
 
-    int i;
-    int j;
-
     MEM_STREAM stream_mem;
     PIXEL_V_STREAM pstrmInput;
     GPIXEL_V_STREAM stream_gray;
