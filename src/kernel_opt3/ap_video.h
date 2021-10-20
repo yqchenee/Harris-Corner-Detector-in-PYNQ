@@ -179,7 +179,6 @@ template <typename T, int LROW, int LCOL>
 
   ap_window(){
 #pragma HLS ARRAY_PARTITION variable=M dim=0 complete
-    //#pragma HLS data_pack variable=M
 };
   ~ap_window(){};
   void shift_right();
