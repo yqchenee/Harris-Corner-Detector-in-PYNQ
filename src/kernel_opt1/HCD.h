@@ -14,9 +14,11 @@
 typedef ap_axiu<32,1,1,1> AXI_PIXEL;
 typedef hls::stream<AXI_PIXEL> stream_io;
 
+// subfunction input, output
 typedef ap_int<32> PIXEL;
 typedef hls::stream<PIXEL> stream_t;
 
+// window and line buffer used in image processing
 typedef ap_window<PIXEL,3,3> WINDOW;
 typedef ap_linebuffer<PIXEL, 3, MAX_WIDTH> BUFFER_3;
 typedef ap_linebuffer<PIXEL, 5, MAX_WIDTH> BUFFER_5;

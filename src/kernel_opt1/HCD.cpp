@@ -35,10 +35,9 @@ void process_input(stream_io* pstrmInput, stream_t* stream_gray, int row, int co
     PIXEL input_gray_pix;
     for (i = 0; i < row; ++i) {
     #pragma HLS loop_tripcount max=256
-    #pragma HLS PIPELINE off
         for (j = 0; j < col; ++j) {
     #pragma HLS loop_tripcount max=256
-    #pragma HLS PIPELINE off
+    #pragma HLS PIPELINE
             input = pstrmInput->read().data;
             input_gray_pix = (input.range(7,0)
                     + input.range(15,8)
@@ -56,7 +55,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
     int i;
     int j;
     PIXEL   tmp, blur;
-    PIXEL input;
+    PIXEL   input;
     WINDOW  window;
     BUFFER_3  buf;
 
@@ -98,9 +97,7 @@ void blur_img(stream_t* stream_gray, stream_t* stream_blur, int row, int col)
 
             blur = Gaussian_filter_1<PIXEL, WINDOW >(&window);
 
-            // fix me
-            input = blur;
-            stream_blur->write(input);
+            stream_blur->write(blur);
         }
     }
 }
@@ -117,10 +114,9 @@ void compute_dif(stream_t* stream_blur, stream_t* stream_Ixx,
 
     for (i = 0 ; i < row+1; i++) {
     #pragma HLS loop_tripcount max=257
-    #pragma HLS PIPELINE off
         for (j = 0; j < col+1; j++) {
     #pragma HLS loop_tripcount max=257
-    #pragma HLS PIPELINE off
+    #pragma HLS PIPELINE
             if (j < col)
                 blur_buf.shift_up(j);
 
@@ -183,10 +179,9 @@ void compute_det_trace(stream_t* stream_Sxx, stream_t* stream_Syy, stream_t* str
 
     for (i = 0; i < row; ++i) {
     #pragma HLS loop_tripcount max=256
-    #pragma HLS PIPELINE off
         for (j = 0; j < col; ++j) {
     #pragma HLS loop_tripcount max=256
-    #pragma HLS PIPELINE off
+    #pragma HLS PIPELINE
             input[0] = stream_Sxx->read();
             input[1] = stream_Sxy->read();
             input[2] = stream_Syy->read();
@@ -224,10 +219,9 @@ void find_local_maxima(stream_t* stream_response, stream_io* pstrmOutput, int ro
 
     for (i = 0 ; i < row+2; i++) {
     #pragma HLS loop_tripcount max=258
-    #pragma HLS PIPELINE off
         for (j = 0; j < col+2; j++) {
     #pragma HLS loop_tripcount max=258
-    #pragma HLS PIPELINE off
+    #pragma HLS PIPELINE
             if (j < col)
                 response_buf.shift_up(j);
 
