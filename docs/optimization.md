@@ -27,15 +27,16 @@ Code below is the abstract of the top function.
 #### Interface
 The top function uses four parameters, the first and second parameters are used to stream in and out of HCD kernel, and their datatype are objects of class stream, which is one of the template classes provided by the Vivado HLS libraries. The third and forth parameters are used to input the image size, namely width (col) and height (row). 
 > parameters' bound
-* 0 < width (col) < 1920
-* 0 < height (row) < 1080
-> datatype
-* pstrmInput, pstrmOutput
-    * **AXI_PIXEL**: ap_axiu<32,1,1,1> (pstrmInput, pstrmOutput)
-    * **stream_io**: hls::stream<**AXI_PIXEL**>
-* stream_xx
-    * **PIXEL**: ap_int<32> 
-    * **stream_t**: hls::stream<**PIXEL**>
+> * 0 < width (col) < 1920
+> * 0 < height (row) < 1080
+
+> data type
+> * pstrmInput, pstrmOutput
+>     * **AXI_PIXEL**: ap_axiu<32,1,1,1> (pstrmInput, > pstrmOutput)
+>     * **stream_io**: hls::stream<**AXI_PIXEL**>
+> * stream_xx
+>     * **PIXEL**: ap_int<32> 
+>     * **stream_t**: hls::stream<**PIXEL**>
 
 #### Optimization
 Since we want all the sub-functions to execute in parallel, that is, all the sub-functions can read in and write out the data continuouly and not be blocked by the others.  
@@ -104,9 +105,9 @@ All the sub-functions follow the following code structure.
 
 #### Interface
 The sub-function uses several parameters, the first few parameters are used to stream in and out of each sub-function, their datatype are objects of class stream, which is one of the template classes provided by the Vivado HLS libraries. The last two parameters are used to input the image size, namely width (col) and height (row).  
-> datatype
-* **PIXEL**: ap_int<32> 
-* **stream_t**: hls::stream<**PIXEL**>
+> data type
+> * **PIXEL**: ap_int<32> 
+> * **stream_t**: hls::stream<**PIXEL**>
 
 #### Optimization
 In additional to using the pragma **dataflow** in top function, to further increase the sub-function throughput, all the sub-functions must have the ability to read the next input when perform some operations on the previous input.  
@@ -116,7 +117,7 @@ In summary, all the sub-functions can reach II=1 finally.
 -------
 
 ### Compact Streaming Interface
-As aforementioned, all the sub-functions' interfaces are stream of **32 bits**, but the data width we only need is
+As aforementioned, all the sub-functions' interfaces are **stream_t** (stream of **32 bits**), but the data width we only need is
 * **24 bits** for input pixel (HCD in/out put)
 * **8 bits** for gray pixel (output of sub-function process_input)
 * **16 bits** for Ixx, Iyy, Ixy (output of sub-function compute_dif)
@@ -128,9 +129,18 @@ Therefore, we used different data width for different variables to reduce the re
 
 ### Parallel Processing
 In the beginning, we input 1 pixel of image to HCD at a time, and by II=1, the throughput of HCD is roughly 1 pixel/cycle.  
-To futher increase the throughput, we utilize **hls::vector** datatype, that is, it helps us to process N pixels at a time parallel. (<a href="https://www.codecogs.com/eqnedit.php?latex=N=2^n" target="_blank"><img src="https://latex.codecogs.com/gif.latex?N=2^n" title="N=2^n" /></a>)
+To futher increase the throughput, we utilize **hls::vector** datatype, that is, it helps us to process N pixels at a time parallel. 
+<a href="https://www.codecogs.com/eqnedit.php?latex=(N&space;=&space;2^n,&space;n\epsilon&space;\mathbb{N})" target="_blank"><img src="https://latex.codecogs.com/gif.latex?(N&space;=&space;2^n,&space;n\epsilon&space;\mathbb{N})" title="(N = 2^n, n\epsilon \mathbb{N})" /></a>
+
+* N can be defined in [HCD.h](./../src/kernel_opt4/HCD.h)
+* Xilinx Vitis HLS provides a template implementation **hls::vector<T,N>** for vector type, which represents a single-instruction multiple-data (SIMD) vector of **N elements of type T**
 
 -------
+
+### m_axi interface
+To fully utilize the memory bandwidth (512 bits in U50, 64 bits in PYNQ) and 
+
+_______
 
 |                               | sub-function pipelining | compact streaming interface | parallel processing | m_axi interface |
 |-------------------------------|:-----------------------:|:----------------------:|:-------------------:|:---------------:|
@@ -140,6 +150,7 @@ To futher increase the throughput, we utilize **hls::vector** datatype, that is,
 | [opt4](./../src/kernel_opt4/) |              v          |            v           |          v          |                 |
 | [opt5](./../src/kernel_opt5/) |              v          |            v           |          v          |        v        |
 
+## Experimental Results
 ### original
 ![](https://i.imgur.com/uX4Ui8P.png)
 
