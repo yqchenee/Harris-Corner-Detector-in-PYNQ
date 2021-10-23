@@ -5,13 +5,13 @@ The details of how the kernel works can be seen in [background.md](./background.
 
 * All the results below are test under image of size 256 x 256.
 
-## Code Example
+## Basic Optimizations
 First, the implementation of HCD contains the top function (HCD) and a string of several sub-functions, you can have a clear look in figure 1.
-<img src="https://i.imgur.com/QiyNkMT.png)" width="500"/>
+<img src="https://i.imgur.com/QiyNkMT.png" width=70%/>
 
 -------
-### Top function (figure 1a)
-Code below is the abstract of the top function.
+### Dataflow in Top Function
+Code below is the abstract of the **top function (figure 1a)**.
 ``` cpp
 1    void HCD(stream_io* pstrmInput, stream_io* pstrmOutput, int row, int col)
 2    {
@@ -43,8 +43,8 @@ Since we want all the sub-functions to execute in parallel, that is, all the sub
 Therefore, we use hls pragma **dataflow** in top function (**line 3**) to help us achieve our goal.
 
 -----------
-### Floating point precision comparison
-In this section, we will compare the different between float and ap_fixed, which is also one of the template classes provided by the Vivado HLS libraries.  
+### Floating Point Precision Comparison
+In this section, we will compare the different between **float** and **ap_fixed**, which is also one of the template classes provided by the Vivado HLS libraries.  
 The following code is the example of image filter used in sub-function blur_img and blur_diff.  
 Code below shows that in **line 4** and **line 7**, the variables sum and op are implemented in ap_fixed.
 ```cpp
@@ -56,7 +56,7 @@ Code below shows that in **line 4** and **line 7**, the variables sum and op are
 6        ap_fixed<12, 1> op[3][3] =
 7        {
 8            {0.0751136, 0.123841, 0.0751136},
-9           {0.123841, 0.20418, 0.123841},
+9            {0.123841,  0.20418,  0.123841},
 10           {0.0751136, 0.123841, 0.0751136}
 11       };
 
@@ -70,20 +70,20 @@ Code below shows that in **line 4** and **line 7**, the variables sum and op are
 19   }
 ```
 We compare the results of the implementation using float to ap_fixed under sub-function blur_img.
-#### Result of using float
-![](https://i.imgur.com/SP8l3kp.png)
+* Result of using float
+<img src="https://i.imgur.com/SP8l3kp.png" width=90%/>
 
-#### Result of using ap_fixed
-![](https://i.imgur.com/AUXwRXa.png)
+* Result of using ap_fixed
+<img src="https://i.imgur.com/AUXwRXa.png" width=90%/>
 
 Based on the results, we can see that if we calculate the variable sum using ap_fixed data type, the usage of the resources and the iteration latency can be reduced significantly, that is, it saves some unnecessary resources and time when doing this operation.  
 The reason of unnecessary is that, in this application, ap_fixed can fully meet our demands, we can save some time and resources by not doing the floating point operations.
 
 ______
-## Advanced Optimization
+## Advanced Optimizations
 
-### Sub-Function Pipelining (figure 1b)
-All the sub-functions follow the following code structure.
+### 1. Sub-Function Pipelining
+All the **sub-functions (figure 1b)** follow the following code structure.
 
 ```cpp
 1    void sub_function(stream_t* input, stream_t* output, int row, int col)
@@ -116,18 +116,18 @@ In summary, all the sub-functions can reach II=1 finally.
 
 -------
 
-### Compact Streaming Interface
+### 2. Compact Streaming Interface
 As aforementioned, all the sub-functions' interfaces are **stream_t** (stream of **32 bits**), but the data width we only need is
-* **24 bits** for input pixel (HCD in/out put)
-* **8 bits** for gray pixel (output of sub-function process_input)
-* **16 bits** for Ixx, Iyy, Ixy (output of sub-function compute_dif)
-* **32 bits** for response (output of sub-function compute_response)
+* **24 bits**: HCD in/output (input pixel contains RGB three channel, and each channel contains 8bits)
+* **8 bits**: output of sub-function process_input (gray_pixel)
+* **16 bits**: output of sub-function compute_dif (Ixx, Ixy, Iyy, Sxx, Sxy, Syy)
+* **32 bits**: output of sub-function compute_response (response)
 
 Therefore, we used different data width for different variables to reduce the resources utilization.
 
 -------
 
-### Parallel Processing
+### 3. Parallel Processing
 In the beginning, we input 1 pixel of image to HCD at a time, and by II=1, the throughput of HCD is roughly 1 pixel/cycle.  
 To futher increase the throughput, we utilize **hls::vector** datatype, that is, it helps us to process N pixels at a time parallel. 
 <a href="https://www.codecogs.com/eqnedit.php?latex=(N&space;=&space;2^n,&space;n\epsilon&space;\mathbb{N})" target="_blank"><img src="https://latex.codecogs.com/gif.latex?(N&space;=&space;2^n,&space;n\epsilon&space;\mathbb{N})" title="(N = 2^n, n\epsilon \mathbb{N})" /></a>
@@ -137,34 +137,64 @@ To futher increase the throughput, we utilize **hls::vector** datatype, that is,
 
 -------
 
-### m_axi interface
-To fully utilize the memory bandwidth (512 bits in U50, 64 bits in PYNQ) and 
+### 4. m_axi Interface
+As aforementioned, we use 24 * N bits (parallel process N input pixels) for top function's in/output, but in hardware interface, the supported bandwidth is one of 32, 64, 128, 256, 512 bits.  
+To fully utilize the memory bandwidth, we add some extra sub-functions at top and bottom of the original HCD algorithm.  
+The following describle what we add in the whole process.
+``` cpp
+1    void HCD(stream_io* pstrmInput, stream_io* pstrmOutput, int row, int col)
+2    {
+3        #pragma HLS dataflow
+4        getMem(memInput, &stream_mem, row, col);
+5        men2gray_str(&stream_mem, &stream_gray, row, col);
+6        blur_img(&stream_gray, &stream_blur);
+7        compute_dif(&stream_blur, &stream_Ixx, &stream_Iyy, &stream_Ixy);
+8        blur_diff(&stream_Ixx, &stream_Iyy, &stream_Ixy, &stream_Sxx, &stream_Syy, &stream_Sxy);
+9        compute_response(&stream_Sxx, &stream_Syy, &stream_Sxy, &stream_response);
+10       find_local_maxima(&stream_response, pstrmOutput);
+11       str2mem(&pstrmOutput, memOutput, row, col);
+12   }
+```
+1. In host side, we gather several image pixels (24 bits/pixel) into a block of  _DATAWIDTH_ bits data, and feed to kernel through m_axi interface.
+2. Inside the kernel, we burst read the data, and scatter them back into the original image pixels. (line 4)
+3. Go through the original HCD algorithm. (line 5 ~ 10)
+4. Gather the output of the HCD algorithm and send the result back to the host side. (line 11)
 
 _______
 
-|                               | sub-function pipelining | compact streaming interface | parallel processing | m_axi interface |
-|-------------------------------|:-----------------------:|:----------------------:|:-------------------:|:---------------:|
-| [opt1](./../src/kernel_opt1/) |              v          |                        |                     |                 |
-| [opt2](./../src/kernel_opt2/) |                         |            v           |                     |                 |
-| [opt3](./../src/kernel_opt3/) |              v          |            v           |                     |                 |
-| [opt4](./../src/kernel_opt4/) |              v          |            v           |          v          |                 |
-| [opt5](./../src/kernel_opt5/) |              v          |            v           |          v          |        v        |
+## Results and Comparisons
+The following table summarizes the different optimize methods used in each implementations.
 
-## Experimental Results
-### original
+|                                 | basic optimizations | sub-function pipelining | compact streaming interface | parallel processing | m_axi interface |
+| :-----------------------------: | :-----------------: |:-----------------------:|:---------------------------:|:-------------------:|:---------------:|
+| [basic](./../src/kernel_basic/) |         v           |                         |                             |                     |                 |
+| [opt1](./../src/kernel_opt1/)   |         v           |            v            |                             |                     |                 |
+| [opt2](./../src/kernel_opt2/)   |         v           |                         |              v              |                     |                 |
+| [opt3](./../src/kernel_opt3/)   |         v           |            v            |              v              |                     |                 |
+| [opt4](./../src/kernel_opt4/)   |         v           |            v            |              v              |          v          |                 |
+| [opt5](./../src/kernel_opt5/)   |         v           |            v            |              v              |          v          |       v         |
+
+### basic
 ![](https://i.imgur.com/uX4Ui8P.png)
 
 ### opt1
 ![](https://i.imgur.com/FGn68QL.png)
+> Compared to basic implementation, after pipelining the sub-functions, we achieve II=1, and the latency of HCD reduced significantly (from 3170869 to 66576)
 
 ### opt2
 ![](https://i.imgur.com/qlO3ITu.png)
+> Compared to basic implementation, after applying compact streaming interface, though usage of DSP increased, usage of resources BRAM, FF and LUT decreased.
 
 ### opt3
 ![](https://i.imgur.com/z3P3V5W.png)
 
-### opt4
+### opt4 with N = 2
 ![](https://i.imgur.com/fktOwD9.png)
+> Compared to opt3, after parallel processing, we achieve II=2, and the latency of HCD futher decreased.
+
+### opt4 with N = 4
+![](https://i.imgur.com/LOUZraa.png)
+> We sucessfully achieve II=4.
 
 ### opt5
 ![](https://i.imgur.com/hQCXHwP.png)
