@@ -1,13 +1,13 @@
 # HCD Optimization
-In this file, we will dig into the details of how we implement and which optimization methods we use in our harris corner detector (HCD) kernel design. In addition, some results will be shown after the explanation of each optimization methods.
-
+In this file, we will dig into the details of how we implement and which optimization methods we use in our harris corner detector (HCD) kernel design. In addition, some results will be shown after the explanation of each optimization methods.  
 The details of how the kernel works can be seen in [background.md](./background.md).
-
 * All the results below are test under image of size 256 x 256.
 
 ## Basic Optimizations
 First, the implementation of HCD contains the top function (HCD) and a string of several sub-functions, you can have a clear look in figure 1.
-<img src="https://i.imgur.com/QiyNkMT.png" width=70%/>
+<p align="center">
+  <img src="https://i.imgur.com/QiyNkMT.png" width=60%/>
+</p>
 
 -------
 ### Dataflow in Top Function
@@ -70,11 +70,10 @@ Code below shows that in **line 4** and **line 7**, the variables sum and op are
 19   }
 ```
 We compare the results of the implementation using float to ap_fixed under sub-function blur_img.
-* Result of using float
-<img src="https://i.imgur.com/SP8l3kp.png" width=90%/>
+* Result of using float (left) and ap_fixed (right)
+<img align="left" src="https://i.imgur.com/SP8l3kp.png" width=47%/>
+<img align="right" src="https://i.imgur.com/AUXwRXa.png" width=47%/>
 
-* Result of using ap_fixed
-<img src="https://i.imgur.com/AUXwRXa.png" width=90%/>
 
 Based on the results, we can see that if we calculate the variable sum using ap_fixed data type, the usage of the resources and the iteration latency can be reduced significantly, that is, it saves some unnecessary resources and time when doing this operation.  
 The reason of unnecessary is that, in this application, ap_fixed can fully meet our demands, we can save some time and resources by not doing the floating point operations.
