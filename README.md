@@ -1,7 +1,7 @@
 # Harris Corner Detector in PYNQ
 
 ## Introduction
-**Harris Corner Detector (HCD)** is a technique to extract features of corners in the image. (for more info, refer to [background](./docs/background.md))  
+**Harris Corner Detector (HCD)** is a technique to extract features of corners in the image. (for more info, refer to [background.md](./docs/background.md))  
 In this project, we implement HCD using **Xilinx Vitis HLS**. The hardware design can be deployed to PYNQ-Z2 borad.
 The objectives of our implementation are low latency and high throughput, thus we explore some optimization methods for further acceleration of the process.
 
@@ -44,7 +44,7 @@ The following list the features of this project, refer to [optimization.md](./do
 2. Import **HCD** IP to Vivado, then add one DMA (for read and for write), after run auto connection, the block diagram should like following figure.
 ![image](https://github.com/yqchenee/ACA_21S_final/blob/master/docs/block_diagram.png)
 3. Generate bitstream from Vivado GUI or tcl file in build folder, then test your bitstream in pynq.
-4. for more information, see [build.pdf](./docs/build.pdf) and [system.md](./docs/system.md)
+4. for more information, refer to [system.md](./docs/system.md)
 
 ### Run Test on PYNQ host (PYNQ-Z2 board)
 1. Upload **[src/host](./src/host/)** folder to pynq's jupyter, then put **[data/host_test](./data/host_test)** folder to the same folder.
@@ -54,4 +54,4 @@ The following list the features of this project, refer to [optimization.md](./do
 
 
 ## Result
-Watch detailed results in [result.md](./docs/result.md)
+The detailed results are in [result.md](./docs/result.md)
