@@ -32,21 +32,21 @@ The following list the features of this project, refer to [optimization.md](./do
 ## Getting Started
 ### Reprequistites
 * Vitis tool version 2020.2
-* Evaluation platofrm (PYNQ-Z2)
-### HLS synthesis (Vitis 2020.2)
+* PYNQ-Z2 board
+### HLS synthesis (Vitis tool)
 1. Clone this project, and import kernel code to Vivado HLS (version 2020.2), generate a IP called **HCD**.
 > CLI example for running [opt4](./src/kernel_opt4), it can be changed to optx (x = 1~5).
 > ```
 > git clone https://github.com/yqchenee/ACA_21S_final.git
 > vitis_hls -f build/script_opt4.tcl
 > ```
-### HW implementation (Vivado 2019.2)
-2. Import **HCD** IP to Vivado (version 2019.2), then add one DMA (for read and for write), after run auto connection, the block diagram should like following figure.
+### HW implementation (Vitis tool)
+2. Import **HCD** IP to Vivado, then add one DMA (for read and for write), after run auto connection, the block diagram should like following figure.
 ![image](https://github.com/yqchenee/ACA_21S_final/blob/master/docs/block_diagram.png)
 3. Generate bitstream from Vivado GUI or tcl file in build folder, then test your bitstream in pynq.
 4. for more information, see [build.pdf](./docs/build.pdf) and [system.md](./docs/system.md)
 
-### Run Test on PYNQ host
+### Run Test on PYNQ host (PYNQ-Z2 board)
 1. Upload **[src/host](./src/host/)** folder to pynq's jupyter, then put **[data/host_test](./data/host_test)** folder to the same folder.
 2. Upload your bitstream and hardware file.
 3. Execute **[HCDhost.ipynb](./src/host/HCDhost.ipynb)** in jupyter notebook, following is the figure after correctly execute it.
