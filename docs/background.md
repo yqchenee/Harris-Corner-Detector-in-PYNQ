@@ -56,15 +56,17 @@ and ![](https://i.imgur.com/U54jWEb.png)
 In HCD, we use magnitude of ![](https://i.imgur.com/CVaEJL4.png)
 to determine a corner. The larger ![](https://i.imgur.com/JvRQCDQ.png)
  is, the more possible region is a corner.
+
 ## Algorithm
-The following code example is in src/host/HCD.py.
-In our implementation, the alogrithm of HCD are the following steps:
-1. We process input: we read input image file, and change RGB image into grayscale.
-2. Applying image filter(Gaussian blur) to blur image.
+In this section, we will explain the python code of HCD implementation in ([HCD.py](./../src/host/HCD.py)).  
+The following text in bold has its corresponding part in hardware implementation of HCD (details in [optimization.md](./optimization.md))
+1. **Process Input**: Read input image file, and change RGB image into grayscale.
+2. **Blur Image**: Apply image filter (Gaussian blur) to blur image.
 ```
 smooth = cv2.GaussianBlur(img, (3, 3), 1.5)
 ```
-3. Compute diff: for every pixel, we compute ![](https://i.imgur.com/giPWgae.png), ![](https://i.imgur.com/5T70a3W.png), and their multipliers.
+
+3. **Compute Diff**: Compute ![](https://i.imgur.com/giPWgae.png), ![](https://i.imgur.com/5T70a3W.png), and their multipliers for every pixel.
 ```
 kernel_x = np.array([[1, 0, -1]])
 kernel_y = np.array([[1.], [0.], [-1.]])
@@ -76,7 +78,8 @@ Ixx = Ix * Ix
 Ixy = Ix * Iy
 Iyy = Iy * Iy
 ```
-4. We compute Sxx, Sxy, Syy (weighted summation of Ixx, Ixy, Iyy in neighbor pixels) and matrix ![](https://i.imgur.com/9m6iZLe.png). 
+
+4. **Blur Diff**: Compute Sxx, Sxy, Syy (weighted summation of Ixx, Ixy, Iyy in neighbor pixels) and matrix ![](https://i.imgur.com/9m6iZLe.png). 
 ```
 Sxx = cv2.GaussianBlur(Ixx, (3, 3), 1)
 Sxy = cv2.GaussianBlur(Ixy, (3, 3), 1)
@@ -87,20 +90,22 @@ mt = np.stack((Sxx, Sxy), axis=2)
 mb = np.stack((Sxy, Syy), axis=2)
 M = np.stack((mt, mb), axis=2)
 ```
-5. We compute ![](https://i.imgur.com/JW0vcAk.png)
+
+5. **Compute Response**: Compute ![](https://i.imgur.com/JW0vcAk.png)
 , ![](https://i.imgur.com/6mfsOzX.png) and response ![](https://i.imgur.com/gQiDMBT.png).
 ```
 M_det = np.array(np.linalg.det(M[:][:]))
 M_trace = np.array(np.trace(M, axis1=2, axis2=3))
 ```
-The response in python code is different from our hardware implementation.
 ```
 response = M_det / (M_trace + 1e-12)
 ```
-6. We use thresholding to filter the pixels with low ![](https://i.imgur.com/aaKCrOH.png).
-7. For every 5x5 region, find the local maxima to determine final result.
+> The response in python code is different from our hardware implementation.
+
+6. We use thresholding to filter the pixels with low response.
+7. **Find Local Maxima**: For every 5x5 region, find the local maxima to determine final result.
 8. Finally, every pixel is a corner or not is determined. 
-Steps 6-8 can be seen in ```post_processing(self, response)```
+Steps 6-8 can be seen in [```post_processing(self, response)```](https://github.com/yqchenee/ACA_21S_final/blob/49aa9a7dd6bde19ec993ef2def9b96ea4a9a8ab1/src/host/HCD.py#L50)
 
 
 
