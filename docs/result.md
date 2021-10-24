@@ -71,4 +71,4 @@ result on 256*256 size image :
 | [opt5](./../src/kernel_opt5/)   |       0.384      |         112         |          76            |       30157       |     45530      |
 | CPU [1] | 235 | x | x | x | x |
 
-[1] We use Intel(R) Xeon(R) CPU E5-2650 v2 @ 2.60GHz.
+[1] [Python code](./../src/host/HCD.py) runs on Intel(R) Xeon(R) CPU E5-2650 v2 @ 2.60GHz.
