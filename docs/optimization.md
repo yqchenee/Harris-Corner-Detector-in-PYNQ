@@ -154,7 +154,7 @@ The following describle what we add in the whole process.
 11       str2mem(&pstrmOutput, memOutput, row, col);
 12   }
 ```
-1. In host side, we gather several image pixels (24 bits/pixel) into a block of  _DATAWIDTH_ bits data, and feed to kernel through m_axi interface.
+1. In host side, we gather several image pixels (24 bits/pixel) into a block of  [_DATAWIDTH_](https://github.com/yqchenee/ACA_21S_final/blob/898023262d95db680ae0bd8d9648cbb8af128ec3/src/kernel_opt5/HCD.h#L19) bits data , and feed to kernel through m_axi interface.
 2. Inside the kernel, we burst read the data, and scatter them back into the original image pixels. (line 4)
 3. Go through the original HCD algorithm. (line 5 ~ 10)
 4. Gather the output of the HCD algorithm and send the result back to the host side. (line 11)
@@ -178,22 +178,44 @@ The following table summarizes the different optimize methods used in each imple
 
 ### opt1
 ![](https://i.imgur.com/FGn68QL.png)
-> Compared to basic implementation, after pipelining the sub-functions, we achieve II=1, and the latency of HCD reduced significantly (from 3170869 to 66576)
+> Compared to basic implementation, after **pipelining the sub-functions**:
+> * achieve II=1
+> * latency: 3170881 -> 66611
+> * resources usage:
+>     * BRAM, FF, LUT: roughly doubled
+>     * DSP: not changed
+
 
 ### opt2
 ![](https://i.imgur.com/qlO3ITu.png)
-> Compared to basic implementation, after applying compact streaming interface, though usage of DSP increased, usage of resources BRAM, FF and LUT decreased.
+> Compared to basic implementation, after applying **compact streaming interface**:
+> * latency: not changed
+> * resources usage:
+>     * BRAM, FF, LUT: roughly 0.6x
+>     * DSP: 2 -> 7
 
 ### opt3
 ![](https://i.imgur.com/z3P3V5W.png)
+> Compared to opt1, the result is similar to opt2 compares to basic  
+> Compared to opt2, the result is similar to opt1 compares to basic
 
 ### opt4 with N = 2
 ![](https://i.imgur.com/fktOwD9.png)
-> Compared to opt3, after parallel processing, we achieve II=2, and the latency of HCD futher decreased.
+> Since we have changed the code structure used in sub-function find_local_maxima, blur_img and blur_diff to legalize the parallel processing, we don't compare it to other implementations.
+> * achieve II=2
+> * latency: 66622 -> 38246
 
 ### opt4 with N = 4
 ![](https://i.imgur.com/LOUZraa.png)
-> We sucessfully achieve II=4.
+> Compared to opt4 with N=2, after **doubling N**:
+> * achieve II=4
+> * latency (cycles): 38246 -> 21316
+> * latency (ns): 3.82E5 -> 2.98E5 (cycle time: 10ns -> 14ns)
+> * resources usage:
+>     * BRAM: 48 -> 56
+>     * FF, LUT: roughly 1.6x
+>     * DSP: 76 -> 138
+
 
 ### opt5
 ![](https://i.imgur.com/hQCXHwP.png)
