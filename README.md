@@ -19,12 +19,14 @@ The following list the features of this project, refer to [optimization.md](./do
         ├── hls_test/           # test data for xilinx HLS tool
         └── host_test/          # test data for pynq's jupyter notebook
     ├── docs/               # documents of this project, including details of background, system and optimization
-    ├── impl_result/        # bit and hwh file and synthesis report for each kernel_optx (Vivado_hls, Vivado 2019.2)
     └── src/                # source code
         ├── host/               # host code for pynq
-        ├── kernel_opt1/        # kernel code without HLS pragma
-        ├── kernel_opt2/        # kernel code with inline, unrolling
-        └── kernel_opt3/        # kernel code with inline, unrolling, pipeline
+        ├── kernel_basic/       # kernel code basic version
+        ├── kernel_opt1/        # kernel code with optimization v1
+        ├── kernel_opt2/        # kernel code with optimization v2
+        └── kernel_opt3/        # kernel code with optimization v3
+        └── kernel_opt4/        # kernel code with optimization v4
+        └── kernel_opt5/        # kernel code with optimization v5
 
 
 
