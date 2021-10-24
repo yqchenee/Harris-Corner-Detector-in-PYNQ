@@ -24,8 +24,8 @@ The following list the features of this project, refer to [optimization.md](./do
         ├── kernel_basic/       # kernel code basic version
         ├── kernel_opt1/        # kernel code with optimization v1
         ├── kernel_opt2/        # kernel code with optimization v2
-        └── kernel_opt3/        # kernel code with optimization v3
-        └── kernel_opt4/        # kernel code with optimization v4
+        ├── kernel_opt3/        # kernel code with optimization v3
+        ├── kernel_opt4/        # kernel code with optimization v4
         └── kernel_opt5/        # kernel code with optimization v5
 
 
