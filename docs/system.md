@@ -1,7 +1,8 @@
 # System
 In this file, we will introduce our HCD system, including host and kernel.
 ## System Overview
-![](https://i.imgur.com/V0vNf9l.png)
+<img src="https://i.imgur.com/V0vNf9l.png" width=80% />
+
 The figure above shows our overall system.  
 First, [host](./../src/host) acquires an image (resolution is at most 1920x1080) and sent the image to the [kernel](./../src) (PL side) through AXI-stream interface.  
 After the kernel completes the computation, the host receives the result from the kernel through AXI-stream interface, too.  
@@ -17,7 +18,7 @@ The mathematical description of the flow can be seen in [background.md](./backgr
 The illustration of the code can be seen in [optimization.md](./optimization.md). 
 
 <p align="center">
-    <img src="https://i.imgur.com/KlJIQhd.png" width=40% />
+    <img src="https://i.imgur.com/KlJIQhd.png" width=20% />
 </p>
 
 ## PL Block Diagram
