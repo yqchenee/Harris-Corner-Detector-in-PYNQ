@@ -9,10 +9,8 @@ The objectives of our implementation are low latency and high throughput, thus w
 The following list the features of this project, refer to [optimization.md](./docs/optimization.md) for more infomation.
 * **Hardware implementation** of image processing algorithm (HCD) using Xilinx Vivado HLS
 * Using several HLS pragma (**dataflow**, **pipeline**) to enhance the overall performance
-* **Parallel processing** to increase HCD throughput
-* **m_axi** interface
-* use vector type of PE level parallelism like SIMD
-* Efficient use of memory - packed 24-bit datatype in memory
+* **Parallel processing**: Use vector type of **PE level parallelism** like SIMD to increase HCD throughput
+* **m_axi** interface: Efficient use of memory - packed 24-bit datatype in memory
 
 ## Folder structure
     ./
