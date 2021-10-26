@@ -81,7 +81,7 @@ The reason of unnecessary is that, in this application, ap_fixed can fully meet 
 ______
 ## Advanced Optimizations
 
-### 1. Sub-Function Pipelining
+### 1. Sub-Function Pipelining ([opt1](./../src/kernel_opt1/))
 All the **sub-functions (figure 1b)** follow the following code structure.
 
 ```cpp
@@ -115,7 +115,7 @@ In summary, all the sub-functions can reach II=1 finally.
 
 -------
 
-### 2. Compact Streaming Interface
+### 2. Compact Streaming Interface ([opt2](./../src/kernel_opt2/))
 As aforementioned, all the sub-functions' interfaces are **stream_t** (stream of **32 bits**), but the data width we only need is
 * **24 bits**: HCD in/output (input pixel contains RGB three channel, and each channel contains 8bits)
 * **8 bits**: output of sub-function process_input (gray_pixel)
@@ -126,7 +126,7 @@ Therefore, we used different data width for different variables to reduce the re
 
 -------
 
-### 3. Parallel Processing
+### 3. Parallel Processing ([opt4](./../src/kernel_opt4/))
 In the beginning, we input 1 pixel of image to HCD at a time, and by II=1, the throughput of HCD is roughly 1 pixel/cycle.  
 To futher increase the throughput, we utilize **hls::vector** datatype, that is, it helps us to process N pixels at a time parallel. 
 <a href="https://www.codecogs.com/eqnedit.php?latex=(N&space;=&space;2^n,&space;n\epsilon&space;\mathbb{N})" target="_blank"><img src="https://latex.codecogs.com/gif.latex?(N&space;=&space;2^n,&space;n\epsilon&space;\mathbb{N})" title="(N = 2^n, n\epsilon \mathbb{N})" /></a>
@@ -136,7 +136,7 @@ To futher increase the throughput, we utilize **hls::vector** datatype, that is,
 
 -------
 
-### 4. m_axi Interface
+### 4. m_axi Interface ([opt5](./../src/kernel_opt5/))
 As aforementioned, we use 24 * N bits (parallel process N input pixels) for top function's in/output, but in hardware interface, the supported bandwidth is one of 32, 64, 128, 256, 512 bits.  
 To fully utilize the memory bandwidth, we add some extra sub-functions at top and bottom of the original HCD algorithm.  
 The following describle what we add in the whole process.
@@ -202,13 +202,13 @@ The following table summarizes the different optimize methods used in each imple
 ### opt4 with N = 2
 ![](https://i.imgur.com/fktOwD9.png)
 > Since we have changed the code structure used in sub-function find_local_maxima, blur_img and blur_diff to legalize the parallel processing, we don't compare it to other implementations.
-> * achieve II=2
+> * throughput: 2 pixels/circle
 > * latency: 66622 -> 38246
 
 ### opt4 with N = 4
 ![](https://i.imgur.com/LOUZraa.png)
 > Compared to opt4 with N=2, after **doubling N**:
-> * achieve II=4
+> * throughput: 4 pixels/circle
 > * latency (cycles): 38246 -> 21316
 > * latency (ns): 3.82E5 -> 2.98E5 (cycle time: 10ns -> 14ns)
 > * resources usage:
