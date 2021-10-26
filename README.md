@@ -59,3 +59,15 @@ The following list the features of this project, refer to [optimization.md](./do
 
 ## Result
 The detailed results are in [result.md](./docs/result.md)
+| design                    | basic optimizations | sub-function pipelining | compact streaming interface | parallel processing | m_axi interface | latency (ms) | BRAM | DSP | FF | LUT |
+| :-----------------------------: | :-----------------: |:-----------------------:|:---------------------------:|:-------------------:|:---------------:| :------------: |:----:|:---:|:----:|:-----:|
+| [basic](./../src/kernel_basic/) |         v           |                         |                             |                     |                 | 31.708  |  80  | 2 | 9214 | 10352 |
+| [opt1](./../src/kernel_opt1/)   |         v           |            v            |                             |                     |                 | 0.666   |  164 | 2 | 17557| 15446 |
+| [opt2](./../src/kernel_opt2/)   |         v           |                         |              v              |                     |                 | 31.708  | 54 | 7  | 6821 | 8644 |
+| [opt3](./../src/kernel_opt3/)   |         v           |            v            |              v              |                     |                 |  0.666 | 116 | 38 | 14468 | 12463 |
+| [opt4](./../src/kernel_opt4/)(N=2)   |         v      |            v            |              v              |          v          |                 | 0.382 | 48 | 76  | 15965 | 16721 |
+| [opt4](./../src/kernel_opt4/)(N=4)   |         v      |            v            |              v              |          v          |                 | 0.298 | 56 | 138 | 23465 | 26791 |
+| [opt5](./../src/kernel_opt5/)   |         v           |            v            |              v              |          v          |       v         | 0.384 | 112 | 76 | 30157 | 45530 |
+| CPU [1]                         |                     |                         |                             |                     |                 | 235 | x | x | x | x |
+
+[1] [Python code](./../src/host/HCD.py) runs on Intel(R) Xeon(R) CPU E5-2650 v2 @ 2.60GHz.
